@@ -41,21 +41,44 @@ td.center {
 tr:nth-child(even) {
     background: #d9d9d9;
 }
+
 .rank1 {
     background: #00b050 !important;
     color: black;
     font-weight: bold;
+    animation: goldGlow 1.8s infinite alternate;
 }
+
 .rank2 {
     background: #92d050 !important;
     color: black;
     font-weight: bold;
+    animation: silverGlow 1.8s infinite alternate;
 }
+
 .rank3 {
     background: #ffff00 !important;
     color: black;
     font-weight: bold;
+    animation: bronzeGlow 1.8s infinite alternate;
 }
+
+@keyframes goldGlow {
+    from { box-shadow: inset 0 0 0px #ffd700; }
+    to { box-shadow: inset 0 0 18px #ffd700; }
+}
+
+@keyframes silverGlow {
+    from { box-shadow: inset 0 0 0px #ffffff; }
+    to { box-shadow: inset 0 0 18px #ffffff; }
+}
+
+@keyframes bronzeGlow {
+    from { box-shadow: inset 0 0 0px #ff9900; }
+    to { box-shadow: inset 0 0 18px #ff9900; }
+}
+
+
 .total {
     background: #3399ff !important;
     font-weight: bold;
@@ -68,9 +91,9 @@ tr:nth-child(even) {
 <body>
 <h1>Investauswertung</h1>
 <div class="info">
-<b>Stand:</b> 03.05.2026 15:13<br>
+<b>Stand:</b> 03.05.2026 15:46<br>
 <b>Gilde:</b> PhönixSchmiede<br>
-<b>API-Update:</b> 2026-05-03 13:02:30
+<b>API-Update:</b> 2026-05-03 13:36:43
 </div>
 
 <table>
@@ -85,224 +108,243 @@ tr:nth-child(even) {
     <th>Kommentar</th>
 </tr>
 
-<tr>
-    <td class="name">[Px]Rengo#67765</td>
+
+<tr class="rank1">
+    <td class="name">🥇 [Px]Rengo#67765</td>
     <td class="center">197</td>
     <td>11.139.957.374.500</td>
     <td>11.689.957.374.500</td>
-    <td class="rank1">550.000.000.000</td>
+    <td>550.000.000.000</td>
     <td>4.94%</td>
     <td>1</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
-    <td class="name">[Px]Grumpy#38018</td>
+
+<tr class="rank2">
+    <td class="name">🥈 [Px]Grumpy#38018</td>
     <td class="center">94</td>
     <td>1.711.340.574.500</td>
     <td>2.122.257.374.500</td>
-    <td class="rank2">410.916.800.000</td>
+    <td>410.916.800.000</td>
     <td>24.01%</td>
     <td>2</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
-    <td class="name">Feñhuà#38589</td>
+
+<tr class="rank3">
+    <td class="name">🥉 Feñhuà#38589</td>
     <td class="center">86</td>
     <td>4.421.335.874.500</td>
     <td>4.714.335.874.500</td>
-    <td class="rank3">293.000.000.000</td>
+    <td>293.000.000.000</td>
     <td>6.63%</td>
     <td>3</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Doofie#37428</td>
     <td class="center">95</td>
     <td>1.960.257.374.500</td>
-    <td>2.161.157.374.500</td>
-    <td class="">200.900.000.000</td>
-    <td>10.25%</td>
+    <td>2.206.157.374.500</td>
+    <td>245.900.000.000</td>
+    <td>12.54%</td>
     <td>4</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Phantom#49892</td>
     <td class="center">98</td>
     <td>2.653.357.374.500</td>
     <td>2.836.557.374.500</td>
-    <td class="">183.200.000.000</td>
+    <td>183.200.000.000</td>
     <td>6.90%</td>
     <td>5</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Luy#63034</td>
     <td class="center">88</td>
     <td>871.957.374.500</td>
     <td>1.019.957.374.500</td>
-    <td class="">148.000.000.000</td>
+    <td>148.000.000.000</td>
     <td>16.97%</td>
     <td>6</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Arzock#61831</td>
     <td class="center">94</td>
     <td>2.414.657.352.945</td>
     <td>2.554.657.352.945</td>
-    <td class="">140.000.000.000</td>
+    <td>140.000.000.000</td>
     <td>5.80%</td>
     <td>7</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]ShySee#26436</td>
     <td class="center">182</td>
     <td>2.626.957.374.500</td>
     <td>2.746.957.374.500</td>
-    <td class="">120.000.000.000</td>
+    <td>120.000.000.000</td>
     <td>4.57%</td>
     <td>8</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">Zubasa#19757</td>
     <td class="center">98</td>
     <td>1.325.657.359.150</td>
     <td>1.415.657.359.150</td>
-    <td class="">90.000.000.000</td>
+    <td>90.000.000.000</td>
     <td>6.79%</td>
     <td>9</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">Mirai#35293</td>
     <td class="center">91</td>
     <td>1.802.957.363.500</td>
     <td>1.882.957.363.500</td>
-    <td class="">80.000.000.000</td>
+    <td>80.000.000.000</td>
     <td>4.44%</td>
     <td>10</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">Marv#78516</td>
     <td class="center">93</td>
     <td>906.307.374.500</td>
     <td>978.957.374.500</td>
-    <td class="">72.650.000.000</td>
+    <td>72.650.000.000</td>
     <td>8.02%</td>
     <td>11</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Khalüsi#35773</td>
     <td class="center">92</td>
     <td>1.304.957.374.500</td>
     <td>1.354.957.374.500</td>
-    <td class="">50.000.000.000</td>
+    <td>50.000.000.000</td>
     <td>3.83%</td>
     <td>12</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Zark#16158</td>
     <td class="center">86</td>
     <td>426.747.374.500</td>
     <td>476.647.374.500</td>
-    <td class="">49.900.000.000</td>
+    <td>49.900.000.000</td>
     <td>11.69%</td>
     <td>13</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">Silvaner#57831</td>
     <td class="center">195</td>
     <td>9.409.957.374.500</td>
     <td>9.439.957.374.500</td>
-    <td class="">30.000.000.000</td>
+    <td>30.000.000.000</td>
     <td>0.32%</td>
     <td>14</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Rümpi#93145</td>
     <td class="center">90</td>
     <td>924.207.374.500</td>
     <td>946.907.374.500</td>
-    <td class="">22.700.000.000</td>
+    <td>22.700.000.000</td>
     <td>2.46%</td>
     <td>15</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Suna#35263</td>
     <td class="center">88</td>
     <td>1.387.507.374.500</td>
     <td>1.397.507.374.500</td>
-    <td class="">10.000.000.000</td>
+    <td>10.000.000.000</td>
     <td>0.72%</td>
     <td>16</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px] Lumpi#32919</td>
     <td class="center">75</td>
     <td>308.487.374.500</td>
     <td>314.087.374.500</td>
-    <td class="">5.600.000.000</td>
+    <td>5.600.000.000</td>
     <td>1.82%</td>
     <td>17</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">[Px]Foxilla#89938</td>
     <td class="center">93</td>
     <td>16.919.957.374.500</td>
     <td>16.919.957.374.500</td>
-    <td class="">0</td>
+    <td>0</td>
     <td>0.00%</td>
     <td>18</td>
     <td class="comment"></td>
 </tr>
 
-<tr>
+
+<tr class="">
     <td class="name">Floroon#24460</td>
     <td class="center">94</td>
     <td>10.010.957.374.500</td>
     <td>10.010.957.374.500</td>
-    <td class="">0</td>
+    <td>0</td>
     <td>0.00%</td>
     <td>19</td>
     <td class="comment"></td>
 </tr>
 
 <tr>
-    <td></td>
-    <td></td>
-    <td>72.527.521.767.595</td>
     <td class="total">Gesamt</td>
-    <td class="total">2.456.866.800.000</td>
-    <td class="total">3.39%</td>
-    <td></td>
-    <td></td>
+    <td class="total"></td>
+    <td class="total">72.527.521.767.595</td>
+    <td class="total"></td>
+    <td class="total">2.501.866.800.000</td>
+    <td class="total">3.45%</td>
+    <td class="total"></td>
+    <td class="total"></td>
 </tr>
 </table>
 </body>
