@@ -1,0 +1,403 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Investauswertung</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f4f4f4;
+}
+h1 {
+    margin-bottom: 5px;
+}
+.info {
+    margin-bottom: 15px;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background: white;
+    font-size: 14px;
+}
+th, td {
+    border: 1px solid #333;
+    padding: 6px 8px;
+    text-align: right;
+}
+th {
+    background: #00a9d6;
+    color: white;
+}
+td.name {
+    text-align: left;
+    font-weight: bold;
+}
+td.center {
+    text-align: center;
+}
+tr:nth-child(even) {
+    background: #d9d9d9;
+}
+
+.rank1 {
+    background: #00b050 !important;
+    color: black;
+    font-weight: bold;
+    animation: goldGlow 1.8s infinite alternate;
+}
+
+.rank2 {
+    background: #92d050 !important;
+    color: black;
+    font-weight: bold;
+    animation: silverGlow 1.8s infinite alternate;
+}
+
+.rank3 {
+    background: #ffff00 !important;
+    color: black;
+    font-weight: bold;
+    animation: bronzeGlow 1.8s infinite alternate;
+}
+
+@keyframes goldGlow {
+    from { box-shadow: inset 0 0 0px #ffd700; }
+    to { box-shadow: inset 0 0 18px #ffd700; }
+}
+
+@keyframes silverGlow {
+    from { box-shadow: inset 0 0 0px #ffffff; }
+    to { box-shadow: inset 0 0 18px #ffffff; }
+}
+
+@keyframes bronzeGlow {
+    from { box-shadow: inset 0 0 0px #ff9900; }
+    to { box-shadow: inset 0 0 18px #ff9900; }
+}
+
+
+.total {
+    background: #3399ff !important;
+    font-weight: bold;
+}
+.comment {
+    text-align: left;
+}
+
+tr {
+    cursor: pointer;
+}
+
+.selected-row td {
+    outline: 3px solid #ff00ff;
+}
+
+.alert {
+    display: inline-block;
+    animation: blinkAlert 0.8s infinite alternate;
+}
+
+@keyframes blinkAlert {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0.25;
+        transform: scale(1.25);
+    }
+}
+
+</style>
+</head>
+<body>
+
+<h1>Investauswertung</h1>
+<div class="info">
+<b>Stand:</b> 21.06.2026 19:06<br>
+<b>Gilde:</b> Eevee Elite<br>
+<b>API-Update:</b> 2026-06-21 16:59:23<br>
+<b>Soll-Invest pro Monat:</b> 100.000.000<br>
+<b>Soll-Invest per heute:</b> 70.000.000
+
+</div>
+
+<table>
+<tr>
+    <th>Nickname</th>
+    <th>Level</th>
+    <th>altes Invest [G]</th>
+    <th>neues Invest [G]</th>
+    <th>Invest [G]</th>
+    <th>ΔVormonat [%]</th>
+    <th>Spieler</th>
+    <th>Kommentar</th>
+</tr>
+
+
+<tr class="rank1" onclick="selectRow(this)">
+    <td class="name">🥇 Snow#32942</td>
+    <td class="center">85</td>
+    <td>1.904.957.374.500</td>
+    <td>1.904.957.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>1</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="rank2" onclick="selectRow(this)">
+    <td class="name">🥈 Psiana#30137</td>
+    <td class="center">80</td>
+    <td>1.643.807.374.500</td>
+    <td>1.643.807.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>2</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="rank3" onclick="selectRow(this)">
+    <td class="name">🥉 Killerlampi#38331</td>
+    <td class="center">84</td>
+    <td>1.610.957.374.500</td>
+    <td>1.610.957.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>3</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Salcin#29012</td>
+    <td class="center">87</td>
+    <td>785.707.331.360</td>
+    <td>785.707.331.360</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>4</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">mi666lueckte#93941</td>
+    <td class="center">78</td>
+    <td>681.017.374.500</td>
+    <td>681.017.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>5</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Noti#69211</td>
+    <td class="center">78</td>
+    <td>271.307.371.700</td>
+    <td>271.307.371.700</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>6</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Shawn#93236</td>
+    <td class="center">74</td>
+    <td>195.037.366.300</td>
+    <td>195.037.366.300</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>7</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Guildarts#32695</td>
+    <td class="center">89</td>
+    <td>3.650.724.988.400</td>
+    <td>3.650.724.988.400</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>8</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Dragonlord#94860</td>
+    <td class="center">73</td>
+    <td>2.236.577.369.900</td>
+    <td>2.236.577.369.900</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>9</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Sky#50449</td>
+    <td class="center">82</td>
+    <td>598.507.374.500</td>
+    <td>598.507.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>10</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">DaDani#45300</td>
+    <td class="center">80</td>
+    <td>490.607.374.500</td>
+    <td>490.607.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>11</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">marixsoph#34368</td>
+    <td class="center">78</td>
+    <td>272.977.374.500</td>
+    <td>272.977.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>12</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Charly#76624</td>
+    <td class="center">79</td>
+    <td>248.037.374.500</td>
+    <td>248.037.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>13</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Falkenauge#96411</td>
+    <td class="center">73</td>
+    <td>240.219.474.500</td>
+    <td>240.219.474.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>14</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">MehmetAbi#80264</td>
+    <td class="center">74</td>
+    <td>201.567.374.500</td>
+    <td>201.567.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>15</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">DerMonk#82177</td>
+    <td class="center">77</td>
+    <td>134.506.374.500</td>
+    <td>134.506.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>16</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Yanni#90215</td>
+    <td class="center">66</td>
+    <td>73.537.074.500</td>
+    <td>73.537.074.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>17</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Gini#86826</td>
+    <td class="center">71</td>
+    <td>61.352.513.000</td>
+    <td>61.352.513.000</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>18</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Akaya#90780</td>
+    <td class="center">62</td>
+    <td>56.772.124.500</td>
+    <td>56.772.124.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>19</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Olaf#88842</td>
+    <td class="center">68</td>
+    <td>50.821.259.500</td>
+    <td>50.821.259.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>20</td>
+    <td class="comment"></td>
+</tr>
+
+<tr>
+    <td class="total">Gesamt</td>
+    <td class="total"></td>
+    <td class="total">15.408.999.618.660</td>
+    <td class="total"></td>
+    <td class="total">0</td>
+    <td class="total">0.00%</td>
+    <td class="total"></td>
+    <td class="total"></td>
+</tr>
+</table>
+
+<script>
+function selectRow(row) {
+    document.querySelectorAll("tr").forEach(r => {
+        r.classList.remove("selected-row");
+    });
+
+    row.classList.add("selected-row");
+}
+</script>
+
+</body>
+</html>
