@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 2 - Gruft Archiv</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #120e1a;
+            --card-bg: #1d1729;
+            --accent-color: #f1b32c;
+            --admin-color: #ff4a4a;
+            --text-color: #ffffff;
+            --text-muted: #7e748f;
+            --border-color: #382d4d;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* Login Maske */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background-color: var(--card-bg); padding: 30px;
+            border-radius: 12px; border: 1px solid var(--border-color);
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%; max-width: 350px; box-sizing: border-box;
+        }
+
+        .app-container { display: none; width: 100%; max-width: 700px; flex-direction: column; }
+        header { text-align: center; margin-bottom: 30px; position: relative; }
+        h1 { color: var(--accent-color); margin-bottom: 5px; }
+        .section-box { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { margin-bottom: 6px; font-weight: bold; font-size: 14px;}
+        input, select { padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: #0b0810; color: white; font-size: 16px; }
+        select option:disabled { color: #4a3f5a; background-color: #100c16; }
+        button { background-color: var(--accent-color); color: #000; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #ffc847; }
+        .status-msg { margin-top: 10px; font-size: 14px; font-style: italic; }
+        .team-image-wrapper { position: relative; margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background-color: #0b0810; }
+        .team-image-wrapper img { width: 100%; display: block; }
+        .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; }
+        
+        .logout-btn { position: absolute; top: 0; right: 0; background: #382d4d; color: white; padding: 6px 12px; font-size: 12px; }
+        .logout-btn:hover { background: var(--admin-color); }
+
+        /* Admin-Wechsel Link */
+        .admin-toggle-link {
+            display: inline-block; margin-top: 15px; font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline;
+        }
+        .admin-toggle-link:hover { color: var(--accent-color); }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color: var(--accent-color); margin-top:0;">Gilden-Zugang</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Chapter 2 - Gruft Archiv</p>
+            
+            <div id="memberForm">
+                <div class="form-group">
+                    <label for="memberPasswordInput" style="text-align: left;">Gilden-Passwort:</label>
+                    <input type="password" id="memberPasswordInput" placeholder="••••••••" onkeypress="if(event.key === 'Enter') loginAsMember()">
+                </div>
+                <button onclick="loginAsMember()" style="width: 100%; margin-top: 10px;">Einloggen</button>
+                <div class="admin-toggle-link" onclick="toggleAdminLogin(true)">Als Admin anmelden</div>
+            </div>
+
+            <div id="adminForm" style="display: none;">
+                <div class="form-group">
+                    <label for="adminEmailInput" style="text-align: left;">Admin E-Mail:</label>
+                    <input type="email" id="adminEmailInput" placeholder="deine-mail@gmail.com">
+                </div>
+                <div class="form-group">
+                    <label for="adminPasswordInput" style="text-align: left;">Admin Passwort:</label>
+                    <input type="password" id="adminPasswordInput" placeholder="••••••••" onkeypress="if(event.key === 'Enter') loginAsAdmin()">
+                </div>
+                <button onclick="loginAsAdmin()" style="width: 100%; margin-top: 10px; background-color: var(--admin-color); color: white;">Admin Login</button>
+                <div class="admin-toggle-link" onclick="toggleAdminLogin(false)">Zurück zum Mitglieder-Login</div>
+            </div>
+
+            <p id="loginError" style="color: var(--admin-color); font-size: 14px; margin-top: 14px; display: none;"></p>
+        </div>
+    </div>
+
+    <div class="app-container" id="appContainer">
+        <header>
+            <button class="logout-btn" onclick="logout()">Ausloggen</button>
+            <h1>Chapter 2 - Gruft Archiv</h1>
+            <p style="color: var(--text-muted)">Erfolgreiche Setups der Stufen 1 - 500</p>
+            <span id="roleBadge" style="font-size: 12px; background: #382d4d; padding: 4px 10px; border-radius: 20px;">Nutzer-Modus</span>
+        </header>
+
+        <div class="section-box">
+            <h3 style="margin-top:0; color: var(--accent-color);">Setup beitragen</h3>
+            <div class="form-group">
+                <label for="uploadLevel">Gruft Tiefe (1-500):</label>
+                <input type="number" id="uploadLevel" min="1" max="500" placeholder="z.B. 60">
+            </div>
+            <div class="form-group">
+                <label for="imageFile">Screenshot:</label>
+                <input type="file" id="imageFile" accept="image/*">
+            </div>
+            <button onclick="uploadToSupabase()" style="width: 100%;">Hochladen</button>
+            <div id="uploadStatus" class="status-msg"></div>
+        </div>
+
+        <div class="section-box">
+            <h3 style="margin-top:0; color: var(--accent-color);">Setups ansehen</h3>
+            <div class="form-group">
+                <label for="viewLevelSelect">Ebene auswählen:</label>
+                <select id="viewLevelSelect" onchange="showTeamsForLevel()">
+                    </select>
+            </div>
+            <div id="imageGallery" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG - Hier deine echten Projektdaten eintragen
+        const SUPABASE_URL = 'https://lmqpjhxoihjiepqhfeek.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtcXBqaHhvaWhqaWVwcWhmZWVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODUwMzksImV4cCI6MjA5ODE2MTAzOX0.YvZp6rXlqDp59YOqtA2fQ6aaTLpR0Fz-mmqZ6OswU2Y';
+
+        // Die exakten Supabase-E-Mails für die Gilde
+        const MEMBER_EMAIL = 'jonasroth+mitgliedc2@gmail.com';
+        const ADMIN_EMAIL = 'jonasroth+adminc2@gmail.com';
+
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let isAdmin = false;
+        let dbData = {};
+
+        // Automatisch eingeloggt bleiben bei Seiten-Refresh
+        window.onload = async () => {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (session) {
+                handleUserSession(session.user);
+            }
+        };
+
+        // Schaltet visuell zwischen Mitglieder- und Admin-Maske um
+        function toggleAdminLogin(showAdmin) {
+            document.getElementById('loginError').style.display = "none";
+            if (showAdmin) {
+                document.getElementById('memberForm').style.display = "none";
+                document.getElementById('adminForm').style.display = "block";
+            } else {
+                document.getElementById('memberForm').style.display = "block";
+                document.getElementById('adminForm').style.display = "none";
+            }
+        }
+
+        // 1. Login für normale Mitglieder (Nur Passwort)
+        async function loginAsMember() {
+            const password = document.getElementById('memberPasswordInput').value;
+            const errorTxt = document.getElementById('loginError');
+            errorTxt.style.display = "none";
+
+            if (!password) { alert("Bitte Passwort eingeben."); return; }
+
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: MEMBER_EMAIL,
+                password: password,
+            });
+
+            if (error) {
+                errorTxt.textContent = "Falsches Gilden-Passwort!";
+                errorTxt.style.display = "block";
+                return;
+            }
+
+            handleUserSession(data.user);
+        }
+
+        // 2. Login für dich als Admin (E-Mail + Passwort)
+        async function loginAsAdmin() {
+            const email = document.getElementById('adminEmailInput').value;
+            const password = document.getElementById('adminPasswordInput').value;
+            const errorTxt = document.getElementById('loginError');
+            errorTxt.style.display = "none";
+
+            if (!email || !password) { alert("Bitte E-Mail und Passwort eingeben."); return; }
+
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (error) {
+                errorTxt.textContent = "Admin-Login fehlgeschlagen: " + error.message;
+                errorTxt.style.display = "block";
+                return;
+            }
+
+            handleUserSession(data.user);
+        }
+
+        // Prüft die eingeloggte E-Mail auf Identität
+        function handleUserSession(user) {
+            if (user.email === ADMIN_EMAIL) {
+                isAdmin = true;
+                document.getElementById('roleBadge').textContent = "🔒 Admin-Modus";
+                document.getElementById('roleBadge').style.backgroundColor = "var(--admin-color)";
+            } else {
+                isAdmin = false;
+                document.getElementById('roleBadge').textContent = "Nutzer-Modus";
+                document.getElementById('roleBadge').style.backgroundColor = "#382d4d";
+            }
+
+            document.getElementById('loginOverlay').style.display = "none";
+            document.getElementById('appContainer').style.display = "flex";
+            loadDataFromSupabase();
+        }
+
+        async function logout() {
+            await _supabase.auth.signOut();
+            window.location.reload();
+        }
+
+        async function loadDataFromSupabase() {
+            const { data, error } = await _supabase.from('setups').select('*');
+            if (error) { console.error(error); return; }
+
+            dbData = {};
+            data.forEach(item => {
+                if (!dbData[item.level]) dbData[item.level] = [];
+                dbData[item.level].push({ id: item.id, url: item.image_url });
+            });
+
+            populateDropdown();
+            showTeamsForLevel();
+        }
+
+        function populateDropdown() {
+            const select = document.getElementById('viewLevelSelect');
+            const currentVal = select.value;
+            select.innerHTML = '';
+
+            for (let i = 1; i <= 500; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                const hasTeams = dbData[i] && dbData[i].length > 0;
+                opt.textContent = hasTeams ? `Ebene ${i} (${dbData[i].length} Teams)` : `Ebene ${i} (Kein Eintrag)`;
+                if (!hasTeams) opt.disabled = true;
+                select.appendChild(opt);
+            }
+            if (currentVal && dbData[currentVal]) select.value = currentVal;
+            else {
+                const firstAvailable = Object.keys(dbData).find(k => dbData[k].length > 0);
+                if (firstAvailable) select.value = firstAvailable;
+            }
+        }
+
+        function showTeamsForLevel() {
+            const level = document.getElementById('viewLevelSelect').value;
+            const gallery = document.getElementById('imageGallery');
+            gallery.innerHTML = '';
+
+            if (!level || !dbData[level] || dbData[level].length === 0) {
+                gallery.innerHTML = '<p style="color: var(--text-muted); text-align:center;">Keine Setups vorhanden.</p>';
+                return;
+            }
+
+            dbData[level].forEach((team) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'team-image-wrapper';
+                const img = document.createElement('img');
+                img.src = team.url;
+                wrapper.appendChild(img);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = 'Bild Löschen';
+                if (isAdmin) delBtn.style.display = "block";
+                delBtn.onclick = () => deleteImage(team.id, team.url);
+                
+                wrapper.appendChild(delBtn);
+                gallery.appendChild(wrapper);
+            });
+        }
+
+        async function uploadToSupabase() {
+            const levelInput = document.getElementById('uploadLevel');
+            const fileInput = document.getElementById('imageFile');
+            const status = document.getElementById('uploadStatus');
+
+            const level = parseInt(levelInput.value, 10);
+            if (isNaN(level) || level < 1 || level > 500) { alert("Ebene zwischen 1 und 500 wählen."); return; }
+            if (!fileInput.files[0]) { alert("Datei wählen."); return; }
+
+            status.textContent = "Bild wird verarbeitet und hochgeladen...";
+            status.style.color = "var(--accent-color)";
+
+            const file = fileInput.files[0];
+            const fileExtension = file.name.split('.').pop();
+            const anonymousFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`;
+
+            const { error: storageError } = await _supabase.storage
+                .from('gruft-bilder')
+                .upload(anonymousFileName, file);
+
+            if (storageError) {
+                status.textContent = "Fehler: " + storageError.message;
+                status.style.color = "var(--admin-color)";
+                return;
+            }
+
+            const { data: urlData } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
+            const publicUrl = urlData.publicUrl;
+
+            const { error: dbError } = await _supabase
+                .from('setups')
+                .insert([{ level: level, image_url: publicUrl }]);
+
+            if (dbError) {
+                status.textContent = "Fehler: " + dbError.message;
+                status.style.color = "var(--admin-color)";
+                return;
+            }
+
+            status.textContent = "Erfolgreich gespeichert!";
+            status.style.color = "#49e37d";
+            levelInput.value = ''; fileInput.value = '';
+            
+            await loadDataFromSupabase();
+            document.getElementById('viewLevelSelect').value = level;
+            showTeamsForLevel();
+        }
+
+        async function deleteImage(id, url) {
+            if (!confirm("Dieses Setup wirklich unwiderruflich löschen?")) return;
+            const fileName = url.split('/').pop();
+            await _supabase.storage.from('gruft-bilder').remove([fileName]);
+            await _supabase.from('setups').delete().eq('id', id);
+            await loadDataFromSupabase();
+        }
+    </script>
+</body>
+</html>
