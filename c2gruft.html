@@ -45,22 +45,30 @@
         .section-box { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; }
         .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
         label { margin-bottom: 6px; font-weight: bold; font-size: 14px;}
-        input, select { padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: #0b0810; color: white; font-size: 16px; }
+        input, select, textarea { padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: #0b0810; color: white; font-size: 16px; font-family: inherit; }
+        textarea { resize: vertical; min-height: 60px; }
         select option:disabled { color: #4a3f5a; background-color: #100c16; }
         button { background-color: var(--accent-color); color: #000; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         button:hover { background-color: #ffc847; }
         .status-msg { margin-top: 10px; font-size: 14px; font-style: italic; }
-        .team-image-wrapper { position: relative; margin-bottom: 20px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background-color: #0b0810; }
-        .team-image-wrapper img { width: 100%; display: block; }
-        .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; }
         
+        /* Bilder-Box & Notiz */
+        .team-image-wrapper { position: relative; margin-bottom: 25px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background-color: #0b0810; }
+        .team-image-wrapper img { width: 100%; display: block; }
+        
+        .team-note-box {
+            background-color: #161120;
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 14px;
+            line-height: 1.4;
+            color: #e2daf0;
+        }
+        
+        .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; z-index: 10; }
         .logout-btn { position: absolute; top: 0; right: 0; background: #382d4d; color: white; padding: 6px 12px; font-size: 12px; }
         .logout-btn:hover { background: var(--admin-color); }
-
-        /* Admin-Wechsel Link */
-        .admin-toggle-link {
-            display: inline-block; margin-top: 15px; font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline;
-        }
+        .admin-toggle-link { display: inline-block; margin-top: 15px; font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
         .admin-toggle-link:hover { color: var(--accent-color); }
     </style>
 </head>
@@ -115,6 +123,10 @@
                 <label for="imageFile">Screenshot:</label>
                 <input type="file" id="imageFile" accept="image/*">
             </div>
+            <div class="form-group">
+                <label for="uploadNote">Notiz / Infos zum Team (Optional):</label>
+                <textarea id="uploadNote" placeholder="Z.B. Teambuilding, wichtige Items, Taktik..."></textarea>
+            </div>
             <button onclick="uploadToSupabase()" style="width: 100%;">Hochladen</button>
             <div id="uploadStatus" class="status-msg"></div>
         </div>
@@ -135,7 +147,7 @@
         const SUPABASE_URL = 'https://lmqpjhxoihjiepqhfeek.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtcXBqaHhvaWhqaWVwcWhmZWVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODUwMzksImV4cCI6MjA5ODE2MTAzOX0.YvZp6rXlqDp59YOqtA2fQ6aaTLpR0Fz-mmqZ6OswU2Y';
 
-        // Die exakten Supabase-E-Mails für die Gilde
+
         const MEMBER_EMAIL = 'jonasroth+mitgliedc2@gmail.com';
         const ADMIN_EMAIL = 'jonasroth+adminc2@gmail.com';
 
@@ -143,15 +155,11 @@
         let isAdmin = false;
         let dbData = {};
 
-        // Automatisch eingeloggt bleiben bei Seiten-Refresh
         window.onload = async () => {
             const { data: { session } } = await _supabase.auth.getSession();
-            if (session) {
-                handleUserSession(session.user);
-            }
+            if (session) { handleUserSession(session.user); }
         };
 
-        // Schaltet visuell zwischen Mitglieder- und Admin-Maske um
         function toggleAdminLogin(showAdmin) {
             document.getElementById('loginError').style.display = "none";
             if (showAdmin) {
@@ -163,52 +171,35 @@
             }
         }
 
-        // 1. Login für normale Mitglieder (Nur Passwort)
         async function loginAsMember() {
             const password = document.getElementById('memberPasswordInput').value;
             const errorTxt = document.getElementById('loginError');
             errorTxt.style.display = "none";
-
             if (!password) { alert("Bitte Passwort eingeben."); return; }
 
             const { data, error } = await _supabase.auth.signInWithPassword({
-                email: MEMBER_EMAIL,
-                password: password,
+                email: MEMBER_EMAIL, password: password,
             });
 
-            if (error) {
-                errorTxt.textContent = "Falsches Gilden-Passwort!";
-                errorTxt.style.display = "block";
-                return;
-            }
-
+            if (error) { errorTxt.textContent = "Falsches Gilden-Passwort!"; errorTxt.style.display = "block"; return; }
             handleUserSession(data.user);
         }
 
-        // 2. Login für dich als Admin (E-Mail + Passwort)
         async function loginAsAdmin() {
             const email = document.getElementById('adminEmailInput').value;
             const password = document.getElementById('adminPasswordInput').value;
             const errorTxt = document.getElementById('loginError');
             errorTxt.style.display = "none";
-
             if (!email || !password) { alert("Bitte E-Mail und Passwort eingeben."); return; }
 
             const { data, error } = await _supabase.auth.signInWithPassword({
-                email: email,
-                password: password,
+                email: email, password: password,
             });
 
-            if (error) {
-                errorTxt.textContent = "Admin-Login fehlgeschlagen: " + error.message;
-                errorTxt.style.display = "block";
-                return;
-            }
-
+            if (error) { errorTxt.textContent = "Admin-Login fehlgeschlagen: " + error.message; errorTxt.style.display = "block"; return; }
             handleUserSession(data.user);
         }
 
-        // Prüft die eingeloggte E-Mail auf Identität
         function handleUserSession(user) {
             if (user.email === ADMIN_EMAIL) {
                 isAdmin = true;
@@ -219,7 +210,6 @@
                 document.getElementById('roleBadge').textContent = "Nutzer-Modus";
                 document.getElementById('roleBadge').style.backgroundColor = "#382d4d";
             }
-
             document.getElementById('loginOverlay').style.display = "none";
             document.getElementById('appContainer').style.display = "flex";
             loadDataFromSupabase();
@@ -237,7 +227,8 @@
             dbData = {};
             data.forEach(item => {
                 if (!dbData[item.level]) dbData[item.level] = [];
-                dbData[item.level].push({ id: item.id, url: item.image_url });
+                // Notiz (note) wird jetzt mit ausgelesen
+                dbData[item.level].push({ id: item.id, url: item.image_url, note: item.note });
             });
 
             populateDropdown();
@@ -277,9 +268,19 @@
             dbData[level].forEach((team) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'team-image-wrapper';
+                
                 const img = document.createElement('img');
                 img.src = team.url;
                 wrapper.appendChild(img);
+
+                // --- NOTIZ ANZEIGEN (Falls vorhanden) ---
+                if (team.note && team.note.trim() !== "") {
+                    const noteBox = document.createElement('div');
+                    noteBox.className = 'team-note-box';
+                    // Sicherer TextContent schützt vor HTML/Script-Injections
+                    noteBox.textContent = team.note; 
+                    wrapper.appendChild(noteBox);
+                }
 
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
@@ -295,6 +296,7 @@
         async function uploadToSupabase() {
             const levelInput = document.getElementById('uploadLevel');
             const fileInput = document.getElementById('imageFile');
+            const noteInput = document.getElementById('uploadNote');
             const status = document.getElementById('uploadStatus');
 
             const level = parseInt(levelInput.value, 10);
@@ -321,9 +323,12 @@
             const { data: urlData } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
             const publicUrl = urlData.publicUrl;
 
+            // --- NOTIZ AUSLESEN UND IN DATENBANK SCHREIBEN ---
+            const noteValue = noteInput.value.trim();
+
             const { error: dbError } = await _supabase
                 .from('setups')
-                .insert([{ level: level, image_url: publicUrl }]);
+                .insert([{ level: level, image_url: publicUrl, note: noteValue || null }]);
 
             if (dbError) {
                 status.textContent = "Fehler: " + dbError.message;
@@ -333,7 +338,7 @@
 
             status.textContent = "Erfolgreich gespeichert!";
             status.style.color = "#49e37d";
-            levelInput.value = ''; fileInput.value = '';
+            levelInput.value = ''; fileInput.value = ''; noteInput.value = '';
             
             await loadDataFromSupabase();
             document.getElementById('viewLevelSelect').value = level;
