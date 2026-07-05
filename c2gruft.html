@@ -369,47 +369,49 @@ async function scanAndSaveBoss() {
     reader.onloadend = function () {
         const base64String = reader.result;
 
-        // --- NEU: FARBANALYSE DIREKT IM BROWSER VIA CANVAS ---
+        // Erstelle ein HTML-Bild-Objekt im Speicher
         const img = new Image();
         img.src = base64String;
+        
+        // WICHTIG: Erst wenn das Bild zu 100% geladen ist, starten wir die Analyse!
         img.onload = async function() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-
-            // Koordinaten des Element-Schildes (ca. bei 20% Breite, 24% Höhe)
-            const targetX = Math.floor(img.width * 0.19);
-            const targetY = Math.floor(img.height * 0.24);
-
-            // Eine kleine 5x5 Pixel Stichprobe nehmen, um Komprimierungsfehler auszugleichen
-            const pixelData = ctx.getImageData(targetX, targetY, 5, 5).data;
-            
-            let r = 0, g = 0, b = 0;
-            for (let i = 0; i < pixelData.length; i += 4) {
-                r += pixelData[i];
-                g += pixelData[i+1];
-                b += pixelData[i+2];
-            }
-            // Durchschnittswerte berechnen
-            r = Math.floor(r / (pixelData.length / 4));
-            g = Math.floor(g / (pixelData.length / 4));
-            b = Math.floor(b / (pixelData.length / 4));
-
-            console.log(`Erkannte Schild-Farbe (RGB): ${r}, ${g}, ${b}`);
-
-            // Abgleich mit den Elementfarben
-            let erkanntesElement = "Luft"; // Fallback
-            if (r > 130 && g < 70 && b < 50) erkanntesElement = "Feuer";
-            else if (g > 110 && r < 100 && b < 80) erkanntesElement = "Erde";
-            else if (b > 130 && r < 80 && g > 90) erkanntesElement = "Wasser";
-            else if (r > 170 && g > 150 && b < 100) erkanntesElement = "Licht";
-            else if (r > 60 && b > 80 && g < 50) erkanntesElement = "Schatten";
-            else if (r > 130 && g > 140 && b > 150) erkanntesElement = "Luft";
-
             try {
-                // Wir senden das extrahierte Element direkt an die Edge Function mit!
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                // Koordinaten des Element-Schildes (ca. bei 19% Breite, 24% Höhe)
+                const targetX = Math.floor(img.width * 0.19);
+                const targetY = Math.floor(img.height * 0.24);
+
+                // Eine kleine 5x5 Pixel Stichprobe nehmen
+                const pixelData = ctx.getImageData(targetX, targetY, 5, 5).data;
+                
+                let r = 0, g = 0, b = 0;
+                for (let i = 0; i < pixelData.length; i += 4) {
+                    r += pixelData[i];
+                    g += pixelData[i+1];
+                    b += pixelData[i+2];
+                }
+                
+                r = Math.floor(r / (pixelData.length / 4));
+                g = Math.floor(g / (pixelData.length / 4));
+                b = Math.floor(b / (pixelData.length / 4));
+
+                console.log(`Erkannte Schild-Farbe (RGB): ${r}, ${g}, ${b}`);
+
+                // Abgleich mit den Elementfarben
+                let erkanntesElement = "Luft"; // Fallback
+                if (r > 130 && g < 80 && b < 80) erkanntesElement = "Feuer";
+                else if (g > 100 && r < 110 && b < 100) erkanntesElement = "Erde";
+                else if (b > 120 && r < 100 && g > 90) erkanntesElement = "Wasser";
+                else if (r > 160 && g > 140 && b < 100) erkanntesElement = "Licht";
+                else if (r > 60 && b > 80 && g < 60) erkanntesElement = "Schatten";
+                else if (r > 120 && g > 130 && b > 140) erkanntesElement = "Luft";
+
+                // Jetzt schicken wir die Daten ab, nachdem das Canvas bereit war
                 const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
                     method: 'POST',
                     headers: {
@@ -417,8 +419,8 @@ async function scanAndSaveBoss() {
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                     },
                     body: JSON.stringify({ 
-                        imageBase64: base64String,
-                        detectedElement: erkanntesElement // Hier fließt die Schildfarbe ein!
+                        imageBase64: base64String, // Das volle originale Bild für die OCR
+                        detectedElement: erkanntesElement 
                     })
                 });
 
@@ -445,6 +447,11 @@ async function scanAndSaveBoss() {
                 status.style.color = "var(--admin-color)";
                 console.error(err);
             }
+        };
+        
+        img.onerror = function() {
+            status.textContent = "Fehler beim Laden des Bildes im Browser.";
+            status.style.color = "var(--admin-color)";
         };
     };
     reader.readAsDataURL(file);
