@@ -361,103 +361,49 @@ async function scanAndSaveBoss() {
     const level = parseInt(levelSelect.value, 10);
     if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
 
-    status.textContent = "Analysiere Boss-Schild & Text... Bitte warten...";
+    status.textContent = "KI analysiert das Bild (Schild & Text)... Bitte warten...";
     status.style.color = "var(--accent-color)";
 
     const file = fileInput.files[0];
+    const reader = new FileReader();
 
-    try {
-        const imageBitmap = await createImageBitmap(file);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Wir verkleinern das Bild extrem auf 50x50 Pixel. 
-        // Das führt dazu, dass der Browser alle Farben herrunterrechnet und wir die dominante Farbe erhalten!
-        canvas.width = 50;
-        canvas.height = 50;
-        ctx.drawImage(imageBitmap, 0, 0, 50, 50);
+    reader.onloadend = async function () {
+        const base64String = reader.result;
 
-        const pixelData = ctx.getImageData(0, 0, 50, 50).data;
-        
-        let rSum = 0, gSum = 0, bSum = 0, count = 0;
-        // Wir scannen das obere Drittel des verkleinerten Bildes nach dominanten Farbtönen
-        for (let i = 0; i < pixelData.length * 0.4; i += 4) {
-            rSum += pixelData[i];
-            gSum += pixelData[i+1];
-            bSum += pixelData[i+2];
-            count++;
-        }
-        
-        const r = Math.floor(rSum / count);
-        const g = Math.floor(gSum / count);
-        const b = Math.floor(bSum / count);
+        try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ imageBase64: base64String })
+            });
 
-        console.log(`Dominante Banner-Farbe (RGB): ${r}, ${g}, ${b}`);
+            const result = await response.json();
 
-        // Eine viel breitere Farbtoleranz für das Boss-UI
-        let erkanntesElement = "Luft"; 
-        if (r > g && r > b && r > 80) erkanntesElement = "Feuer";
-        else if (g > r && g > b && g > 70) erkanntesElement = "Erde";
-        else if (b > r && b > g && b > 90) erkanntesElement = "Wasser";
-        else if (r > 130 && g > 120 && b < 100) erkanntesElement = "Licht";
-        else if (r > 40 && b > 50 && g < 40) erkanntesElement = "Schatten";
+            if (result.success) {
+                const { error: dbError } = await _supabase
+                    .from('boss_data')
+                    .upsert({ level: level, element: result.element, mods: result.modifiers });
 
-        const reader = new FileReader();
-        reader.onloadend = async function () {
-            const base64String = reader.result;
+                if (dbError) throw dbError;
 
-            try {
-                // Sicherheits-Fallback: Wir schicken den rohen OCR-Text ebenfalls mit
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                    },
-                    body: JSON.stringify({ 
-                        imageBase64: base64String,
-                        detectedElement: erkanntesElement 
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Wenn die Cloud trotz allem KEINE Modifikatoren gefunden hat (OCR fehlgeschlagen),
-                    // brechen wir ab und laden nicht neu, damit der User die Fehlermeldung sieht!
-                    if (!result.modifiers || result.modifiers.length === 0) {
-                        status.textContent = "Fehler: Die Texterkennung (OCR) hat auf diesem Bild keine Modifikatoren lesen können. Bitte lade ein schärferes Bild hoch.";
-                        status.style.color = "var(--admin-color)";
-                        return;
-                    }
-
-                    const { error: dbError } = await _supabase
-                        .from('boss_data')
-                        .upsert({ level: level, element: result.element, mods: result.modifiers });
-
-                    if (dbError) throw dbError;
-
-                    status.textContent = `Boss erfolgreich erfasst!`;
-                    status.style.color = "#49e37d";
-                    fileInput.value = '';
-
-                    window.location.reload();
-                } else {
-                    status.textContent = "Erkennungsfehler: " + result.error;
-                    status.style.color = "var(--admin-color)";
-                }
-            } catch (err) {
-                status.textContent = "Fehler beim Verarbeiten oder Speichern.";
+                status.textContent = `Boss erfolgreich erfasst!`;
+                status.style.color = "#49e37d";
+                fileInput.value = '';
+                window.location.reload();
+            } else {
+                status.textContent = "Erkennungsfehler: " + result.error;
                 status.style.color = "var(--admin-color)";
-                console.error(err);
             }
-        };
-        reader.readAsDataURL(file);
-
-    } catch (bitmapError) {
-        status.textContent = "Fehler bei der Bildanalyse.";
-        status.style.color = "var(--admin-color)";
-    }
+        } catch (err) {
+            status.textContent = "Fehler bei der KI-Verarbeitung.";
+            status.style.color = "var(--admin-color)";
+            console.error(err);
+        }
+    };
+    reader.readAsDataURL(file);
 }
 
 async function uploadToSupabase() {
