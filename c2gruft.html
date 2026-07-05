@@ -270,81 +270,88 @@
             loadLevelData();
         }
 
-        // KORRIGIERT: Keine Doppelanzeigen mehr und saubere Bild-URLs
-        async function loadLevelData() {
-            const level = document.getElementById('viewLevelSelect').value;
-            if (!level) return;
+// KORRIGIERT: Bereinigt Teambild-Pfade und verhindert Doppelungen nach Uploads
+async function loadLevelData() {
+    const level = document.getElementById('viewLevelSelect').value;
+    if (!level) return;
 
-            // 1. Boss-Modifikatoren laden
-            const bossView = document.getElementById('bossDataView');
-            bossView.innerHTML = '';
+    // 1. Boss-Modifikatoren Container komplett leeren und neu aufbauen
+    const bossView = document.getElementById('bossDataView');
+    bossView.innerHTML = '';
 
-            const { data: boss } = await _supabase.from('boss_data').select('*').eq('level', level).maybeSingle();
+    const { data: boss } = await _supabase.from('boss_data').select('*').eq('level', level).maybeSingle();
 
-            if (boss) {
-                const bossCard = document.createElement('div');
-                bossCard.className = 'boss-info-display';
-                
-                let deleteButtonHtml = '';
-                if (isAdmin) {
-                    deleteButtonHtml = `<button class="delete-boss-btn" style="display: block;" onclick="deleteBossData(${boss.level})">Boss-Eintrag löschen</button>`;
-                }
-
-                bossCard.innerHTML = `
-                    <h3>Boss-Details (Tiefe ${level})</h3>
-                    ${deleteButtonHtml}
-                    <p><strong>Affinität:</strong> ${boss.element}</p>
-                    <strong>Modifikatoren (Hover für Info):</strong>
-                `;
-                
-                const grid = document.createElement('div');
-                grid.className = 'mod-grid';
-
-                const { data: library } = await _supabase.from('modifiers_library').select('*').in('name_de', boss.mods);
-                
-                if(library) {
-                    library.forEach(mod => {
-                        const item = document.createElement('div');
-                        item.className = 'mod-item';
-                        item.setAttribute('title', mod.description || "Keine Beschreibung hinterlegt.");
-                        
-                        // Fallback falls der englische Name in der DB noch NULL ist
-                        const englName = mod.name_en ? ` (${mod.name_en})` : '';
-                        item.innerHTML = `✨ <strong>${mod.name_de}</strong>${englName}`;
-                        grid.appendChild(item);
-                    });
-                }
-                bossCard.appendChild(grid);
-                bossView.appendChild(bossCard);
-            }
-
-            // 2. Teams laden
-            const gallery = document.getElementById('imageGallery');
-            gallery.innerHTML = '';
-            const { data: teams } = await _supabase.from('setups').select('*').eq('level', level);
-
-            if (teams && teams.length > 0) {
-                teams.forEach(team => {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'team-image-wrapper';
-                    const img = document.createElement('img'); 
-                    img.src = team.image_url; // Korrigiert auf image_url Spalte
-                    wrapper.appendChild(img);
-
-                    if (team.note) {
-                        const nBox = document.createElement('div'); nBox.className = 'team-note-box'; nBox.textContent = team.note; wrapper.appendChild(nBox);
-                    }
-
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-btn'; delBtn.textContent = 'Bild Löschen';
-                    if (isAdmin) delBtn.style.display = "block";
-                    delBtn.onclick = () => deleteTeam(team.id, team.image_url);
-                    
-                    wrapper.appendChild(delBtn); gallery.appendChild(wrapper);
-                });
-            }
+    if (boss) {
+        const bossCard = document.createElement('div');
+        bossCard.className = 'boss-info-display';
+        
+        let deleteButtonHtml = '';
+        if (isAdmin) {
+            deleteButtonHtml = `<button class="delete-boss-btn" style="display: block;" onclick="deleteBossData(${boss.level})">Boss-Eintrag löschen</button>`;
         }
 
+        bossCard.innerHTML = `
+            <h3>Boss-Details (Tiefe ${level})</h3>
+            ${deleteButtonHtml}
+            <p><strong>Affinität:</strong> ${boss.element}</p>
+            <strong>Modifikatoren (Hover für Info):</strong>
+        `;
+        
+        const grid = document.createElement('div');
+        grid.className = 'mod-grid';
+
+        const { data: library } = await _supabase.from('modifiers_library').select('*').in('name_de', boss.mods);
+        
+        if(library) {
+            library.forEach(mod => {
+                const item = document.createElement('div');
+                item.className = 'mod-item';
+                item.setAttribute('title', mod.description || "Keine Beschreibung hinterlegt.");
+                
+                const englName = mod.name_en ? ` (${mod.name_en})` : '';
+                item.innerHTML = `✨ <strong>${mod.name_de}</strong>${englName}`;
+                grid.appendChild(item);
+            });
+        }
+        bossCard.appendChild(grid);
+        bossView.appendChild(bossCard);
+    }
+
+    // 2. Teams Container komplett leeren und neu laden
+    const gallery = document.getElementById('imageGallery');
+    gallery.innerHTML = '';
+    const { data: teams } = await _supabase.from('setups').select('*').eq('level', level);
+
+    if (teams && teams.length > 0) {
+        teams.forEach(team => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'team-image-wrapper';
+            const img = document.createElement('img'); 
+            
+            // KORREKTUR: Nutzt das exakte Datenbankfeld 'image_url' aus deiner Tabelle
+            img.src = team.image_url; 
+            wrapper.appendChild(img);
+
+            if (team.note) {
+                const nBox = document.createElement('div'); 
+                nBox.className = 'team-note-box'; 
+                nBox.textContent = team.note; 
+                wrapper.appendChild(nBox);
+            }
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn'; 
+            delBtn.textContent = 'Bild Löschen';
+            if (isAdmin) delBtn.style.display = "block";
+            
+            // KORREKTUR: Übergibt den korrekten Bildpfad an die Löschfunktion
+            delBtn.onclick = () => deleteTeam(team.id, team.image_url);
+            
+            wrapper.appendChild(delBtn); 
+            gallery.appendChild(wrapper);
+        });
+    }
+}
         async function scanAndSaveBoss() {
             const levelSelect = document.getElementById('uploadBossLevelSelect');
             const fileInput = document.getElementById('bossImageFile');
