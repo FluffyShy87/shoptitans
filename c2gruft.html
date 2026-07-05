@@ -51,19 +51,56 @@
         button:hover { background-color: #ffc847; }
         .status-msg { margin-top: 10px; font-size: 14px; font-style: italic; }
         
-        /* NEU: Flexbox-Grid für Desktop-Ansicht */
+/* Flexbox-Grid für Desktop-Ansicht */
         .dashboard-grid {
             display: flex;
             flex-direction: row;
             gap: 20px;
-            align-items: stretch;
+            align-items: flex-start; /* KORREKTUR: Verhindert, dass sich das eingeklappte Panel unschön in die Länge zieht */
             width: 100%;
             margin-bottom: 5px;
         }
 
-        .dashboard-grid .card {
+        .dashboard-grid .card, 
+        .dashboard-grid details.card {
             flex: 1;
             margin-bottom: 0;
+        }
+
+        /* Styling für das aufklappbare Panel */
+        details.card summary {
+            list-style: none; /* Entfernt den Standard-Pfeil im Firefox/Chrome */
+            cursor: pointer;
+            outline: none;
+        }
+
+        details.card summary::-webkit-details-marker {
+            display: none; /* Entfernt den Standard-Pfeil im Safari */
+        }
+
+        details.card summary h3 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0;
+        }
+
+        /* Ein kleiner Indikator-Pfeil, der sich beim Öffnen dreht */
+        details.card summary h3::after {
+            content: "▶";
+            font-size: 14px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        details[open].card summary h3::after {
+            transform: rotate(90deg);
+            color: var(--accent-color);
+        }
+
+        /* Abstand für den Inhalt, wenn das Panel geöffnet ist */
+        details[open] .panel-content {
+            margin-top: 15px;
         }
         
         .team-image-wrapper { position: relative; margin-bottom: 25px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background-color: #0b0810; }
@@ -165,22 +202,27 @@
             <span id="roleBadge" style="font-size: 12px; background: #382d4d; padding: 4px 10px; border-radius: 20px;">Nutzer-Modus</span>
         </header>
 
-        <!-- NEUER WRAPPER FÜR KARTEN NEBENANEANDER -->
+<!-- NEUER WRAPPER FÜR KARTEN NEBENANEANDER -->
         <div class="dashboard-grid">
-            <!-- BOSS-MODIFIKATOREN AUTOMATISCH MIT BILD SCANNEN -->
-            <div class="card upload-section">
-                <h3 style="margin-top:0; color: var(--accent-color);">Boss automatisch erfassen</h3>
-                <div class="form-group">
-                    <label for="uploadBossLevelSelect">Gruft Tiefe (1-500):</label>
-                    <select id="uploadBossLevelSelect"></select>
+            <!-- BOSS-MODIFIKATOREN ALS AUFKLAPPBARES PANEL (Standardmäßig zu) -->
+            <details class="card upload-section">
+                <summary>
+                    <h3 style="color: var(--accent-color);">Boss automatisch erfassen</h3>
+                </summary>
+                
+                <div class="panel-content">
+                    <div class="form-group">
+                        <label for="uploadBossLevelSelect">Gruft Tiefe (1-500):</label>
+                        <select id="uploadBossLevelSelect"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bossImageFile">Boss-Screenshot hochladen:</label>
+                        <input type="file" id="bossImageFile" accept="image/*">
+                    </div>
+                    <button onclick="scanAndSaveBoss()" style="width: 100%; margin-top: 5px;">Bild scannen & speichern</button>
+                    <div id="bossScanStatus" class="status-msg"></div>
                 </div>
-                <div class="form-group">
-                    <label for="bossImageFile">Boss-Screenshot hochladen:</label>
-                    <input type="file" id="bossImageFile" accept="image/*">
-                </div>
-                <button onclick="scanAndSaveBoss()" style="width: 100%; margin-top: 5px;">Bild scannen & speichern</button>
-                <div id="bossScanStatus" class="status-msg"></div>
-            </div>
+            </details>
 
             <!-- UPLOAD: TEAM SCREENSHOT -->
             <div class="card upload-section">
