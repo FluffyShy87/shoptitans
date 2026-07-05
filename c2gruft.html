@@ -360,49 +360,92 @@ async function scanAndSaveBoss() {
     const level = parseInt(levelSelect.value, 10);
     if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
 
-    status.textContent = "Bilderkennung in der Cloud läuft... Bitte warten...";
+    status.textContent = "Analysiere Boss-Schild & Text... Bitte warten...";
     status.style.color = "var(--accent-color)";
 
     const file = fileInput.files[0];
     const reader = new FileReader();
 
-    reader.onloadend = async function () {
+    reader.onloadend = function () {
         const base64String = reader.result;
 
-        try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                },
-                body: JSON.stringify({ imageBase64: base64String })
-            });
+        // --- NEU: FARBANALYSE DIREKT IM BROWSER VIA CANVAS ---
+        const img = new Image();
+        img.src = base64String;
+        img.onload = async function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
 
-            const result = await response.json();
+            // Koordinaten des Element-Schildes (ca. bei 20% Breite, 24% Höhe)
+            const targetX = Math.floor(img.width * 0.19);
+            const targetY = Math.floor(img.height * 0.24);
 
-            if (result.success) {
-                const { error: dbError } = await _supabase
-                    .from('boss_data')
-                    .upsert({ level: level, element: result.element, mods: result.modifiers });
-
-                if (dbError) throw dbError;
-
-                status.textContent = `Boss erfolgreich erfasst!`;
-                status.style.color = "#49e37d";
-                fileInput.value = '';
-
-                // SMART REFRESH: Seite hart neu laden, um Geister-Einträge zu killen
-                window.location.reload();
-            } else {
-                status.textContent = "Erkennungsfehler: " + result.error;
-                status.style.color = "var(--admin-color)";
+            // Eine kleine 5x5 Pixel Stichprobe nehmen, um Komprimierungsfehler auszugleichen
+            const pixelData = ctx.getImageData(targetX, targetY, 5, 5).data;
+            
+            let r = 0, g = 0, b = 0;
+            for (let i = 0; i < pixelData.length; i += 4) {
+                r += pixelData[i];
+                g += pixelData[i+1];
+                b += pixelData[i+2];
             }
-        } catch (err) {
-            status.textContent = "Fehler beim Verarbeiten oder Speichern.";
-            status.style.color = "var(--admin-color)";
-            console.error(err);
-        }
+            // Durchschnittswerte berechnen
+            r = Math.floor(r / (pixelData.length / 4));
+            g = Math.floor(g / (pixelData.length / 4));
+            b = Math.floor(b / (pixelData.length / 4));
+
+            console.log(`Erkannte Schild-Farbe (RGB): ${r}, ${g}, ${b}`);
+
+            // Abgleich mit den Elementfarben
+            let erkanntesElement = "Luft"; // Fallback
+            if (r > 130 && g < 70 && b < 50) erkanntesElement = "Feuer";
+            else if (g > 110 && r < 100 && b < 80) erkanntesElement = "Erde";
+            else if (b > 130 && r < 80 && g > 90) erkanntesElement = "Wasser";
+            else if (r > 170 && g > 150 && b < 100) erkanntesElement = "Licht";
+            else if (r > 60 && b > 80 && g < 50) erkanntesElement = "Schatten";
+            else if (r > 130 && g > 140 && b > 150) erkanntesElement = "Luft";
+
+            try {
+                // Wir senden das extrahierte Element direkt an die Edge Function mit!
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
+                    body: JSON.stringify({ 
+                        imageBase64: base64String,
+                        detectedElement: erkanntesElement // Hier fließt die Schildfarbe ein!
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const { error: dbError } = await _supabase
+                        .from('boss_data')
+                        .upsert({ level: level, element: result.element, mods: result.modifiers });
+
+                    if (dbError) throw dbError;
+
+                    status.textContent = `Boss erfolgreich erfasst!`;
+                    status.style.color = "#49e37d";
+                    fileInput.value = '';
+
+                    window.location.reload();
+                } else {
+                    status.textContent = "Erkennungsfehler: " + result.error;
+                    status.style.color = "var(--admin-color)";
+                }
+            } catch (err) {
+                status.textContent = "Fehler beim Verarbeiten oder Speichern.";
+                status.style.color = "var(--admin-color)";
+                console.error(err);
+            }
+        };
     };
     reader.readAsDataURL(file);
 }
