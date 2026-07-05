@@ -352,98 +352,103 @@ async function loadLevelData() {
         });
     }
 }
-        async function scanAndSaveBoss() {
-            const levelSelect = document.getElementById('uploadBossLevelSelect');
-            const fileInput = document.getElementById('bossImageFile');
-            const status = document.getElementById('bossScanStatus');
+async function scanAndSaveBoss() {
+    const levelSelect = document.getElementById('uploadBossLevelSelect');
+    const fileInput = document.getElementById('bossImageFile');
+    const status = document.getElementById('bossScanStatus');
 
-            const level = parseInt(levelSelect.value, 10);
-            if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
+    const level = parseInt(levelSelect.value, 10);
+    if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
 
-            status.textContent = "Bilderkennung in der Cloud läuft... Bitte warten...";
-            status.style.color = "var(--accent-color)";
+    status.textContent = "Bilderkennung in der Cloud läuft... Bitte warten...";
+    status.style.color = "var(--accent-color)";
 
-            const file = fileInput.files[0];
-            const reader = new FileReader();
+    const file = fileInput.files[0];
+    const reader = new FileReader();
 
-            reader.onloadend = async function () {
-                const base64String = reader.result;
+    reader.onloadend = async function () {
+        const base64String = reader.result;
 
-                try {
-                    const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                        },
-                        body: JSON.stringify({ imageBase64: base64String })
-                    });
+        try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ imageBase64: base64String })
+            });
 
-                    const result = await response.json();
+            const result = await response.json();
 
-                    if (result.success) {
-                        const { error: dbError } = await _supabase
-                            .from('boss_data')
-                            .upsert({ level: level, element: result.element, mods: result.modifiers });
+            if (result.success) {
+                const { error: dbError } = await _supabase
+                    .from('boss_data')
+                    .upsert({ level: level, element: result.element, mods: result.modifiers });
 
-                        if (dbError) throw dbError;
+                if (dbError) throw dbError;
 
-                        status.textContent = `Boss erfolgreich erfasst! Affinität: ${result.element}. Modifikatoren: ${result.modifiers.join(', ')}`;
-                        status.style.color = "#49e37d";
-                        fileInput.value = '';
+                status.textContent = `Boss erfolgreich erfasst! Affinität: ${result.element}. Modifikatoren: ${result.modifiers.join(', ')}`;
+                status.style.color = "#49e37d";
+                fileInput.value = '';
 
-                        await loadInitialDropdownData();
-                        document.getElementById('viewLevelSelect').value = level;
-                        loadLevelData();
-                    } else {
-                        status.textContent = "Erkennungsfehler: " + result.error;
-                        status.style.color = "var(--admin-color)";
-                    }
-                } catch (err) {
-                    status.textContent = "Fehler beim Verarbeiten oder Speichern.";
-                    status.style.color = "var(--admin-color)";
-                    console.error(err);
-                }
-            };
-            reader.readAsDataURL(file);
+                // JETZT NEU: Erst die Ansichten leeren, dann neu aufbauen
+                document.getElementById('bossDataView').innerHTML = '';
+                document.getElementById('imageGallery').innerHTML = '';
+
+                await loadInitialDropdownData();
+                document.getElementById('viewLevelSelect').value = level;
+                loadLevelData();
+            } else {
+                status.textContent = "Erkennungsfehler: " + result.error;
+                status.style.color = "var(--admin-color)";
+            }
+        } catch (err) {
+            status.textContent = "Fehler beim Verarbeiten oder Speichern.";
+            status.style.color = "var(--admin-color)";
+            console.error(err);
         }
+    };
+    reader.readAsDataURL(file);
+}
 
-        // KORRIGIERT: Robuster Bild-URL-Pfad für fehlerfreie Anzeige
-        async function uploadToSupabase() {
-            const levelSelect = document.getElementById('uploadLevelSelect');
-            const fileInput = document.getElementById('imageFile');
-            const noteInput = document.getElementById('uploadNote');
-            const status = document.getElementById('uploadStatus');
+async function uploadToSupabase() {
+    const levelSelect = document.getElementById('uploadLevelSelect');
+    const fileInput = document.getElementById('imageFile');
+    const noteInput = document.getElementById('uploadNote');
+    const status = document.getElementById('uploadStatus');
 
-            const level = parseInt(levelSelect.value, 10);
-            if (!fileInput.files[0]) { alert("Datei wählen."); return; }
+    const level = parseInt(levelSelect.value, 10);
+    if (!fileInput.files[0]) { alert("Datei wählen."); return; }
 
-            status.textContent = "Team wird hochgeladen...";
-            status.style.color = "var(--accent-color)";
+    status.textContent = "Team wird hochgeladen...";
+    status.style.color = "var(--accent-color)";
 
-            const file = fileInput.files[0];
-            const fileExtension = file.name.split('.').pop();
-            const anonymousFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`;
+    const file = fileInput.files[0];
+    const fileExtension = file.name.split('.').pop();
+    const anonymousFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`;
 
-            const { error: storageError } = await _supabase.storage.from('gruft-bilder').upload(anonymousFileName, file);
-            if (storageError) { status.textContent = "Fehler: " + storageError.message; status.style.color = "var(--admin-color)"; return; }
+    const { error: storageError } = await _supabase.storage.from('gruft-bilder').upload(anonymousFileName, file);
+    if (storageError) { status.textContent = "Fehler: " + storageError.message; status.style.color = "var(--admin-color)"; return; }
 
-            // Sicherer URL-Abruf
-            const { data } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
-            const publicUrl = data.publicUrl;
-            
-            const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: publicUrl, note: noteInput.value.trim() || null }]);
-            if (dbError) { status.textContent = "Fehler: " + dbError.message; status.style.color = "var(--admin-color)"; return; }
+    const { data } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
+    const publicUrl = data.publicUrl;
+    
+    const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: publicUrl, note: noteInput.value.trim() || null }]);
+    if (dbError) { status.textContent = "Fehler: " + dbError.message; status.style.color = "var(--admin-color)"; return; }
 
-            status.textContent = "Team erfolgreich gespeichert!";
-            status.style.color = "#49e37d";
-            fileInput.value = ''; noteInput.value = '';
-            
-            await loadInitialDropdownData();
-            document.getElementById('viewLevelSelect').value = level;
-            loadLevelData();
-        }
+    status.textContent = "Team erfolgreich gespeichert!";
+    status.style.color = "#49e37d";
+    fileInput.value = ''; noteInput.value = '';
+    
+    // JETZT NEU: Erst die Ansichten leeren, dann neu aufbauen
+    document.getElementById('bossDataView').innerHTML = '';
+    document.getElementById('imageGallery').innerHTML = '';
 
+    await loadInitialDropdownData();
+    document.getElementById('viewLevelSelect').value = level;
+    loadLevelData();
+}
         // NEU: Admin-Funktion zum vollständigen Löschen des Boss-Eintrags eines Levels
         async function deleteBossData(level) {
             if (!confirm(`Möchtest du die Boss-Modifikatoren für Ebene ${level} wirklich komplett löschen?`)) return;
