@@ -24,7 +24,6 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        /* Login Maske */
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: var(--bg-color);
@@ -54,8 +53,14 @@
         
         .team-image-wrapper { position: relative; margin-bottom: 25px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background-color: #0b0810; }
         .team-image-wrapper img { width: 100%; display: block; }
+        .team-note-box { background-color: #161120; padding: 12px; border-top: 1px solid var(--border-color); font-size: 14px; color: #e2daf0; }
         
-        .team-note-box { background-color: #161120; padding: 12px; border-top: 1px solid var(--border-color); font-size: 14px; line-height: 1.4; color: #e2daf0; }
+        /* Modifikatoren Grid */
+        .boss-info-display { background: #161120; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 15px; }
+        .mod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+        .mod-item { background-color: #251d34; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); cursor: help; font-size: 14px; }
+        .mod-item:hover { border-color: var(--accent-color); }
+
         .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; z-index: 10; }
         .logout-btn { position: absolute; top: 0; right: 0; background: #382d4d; color: white; padding: 6px 12px; font-size: 12px; }
         .logout-btn:hover { background: var(--admin-color); }
@@ -65,6 +70,7 @@
 </head>
 <body>
 
+    <!-- LOGIN MASKE -->
     <div id="loginOverlay">
         <div class="login-box">
             <h2 style="color: var(--accent-color); margin-top:0;">Gilden-Zugang</h2>
@@ -96,40 +102,63 @@
         </div>
     </div>
 
+    <!-- APP CONTAINER -->
     <div class="app-container" id="appContainer">
         <header>
             <button class="logout-btn" onclick="logout()">Ausloggen</button>
             <h1>Chapter 2 - Gruft Archiv</h1>
-            <p style="color: var(--text-muted)">Erfolgreiche Setups der Stufen 1 - 500</p>
+            <p style="color: var(--text-muted)">Erfolgreiche Setups & Modifikatoren (Stufen 1 - 500)</p>
             <span id="roleBadge" style="font-size: 12px; background: #382d4d; padding: 4px 10px; border-radius: 20px;">Nutzer-Modus</span>
         </header>
 
+        <!-- NEU: BOSS-MODIFIKATOREN AUTOMATISCH MIT BILD SCANNEN (Für jeden erlaubt) -->
         <div class="section-box">
-            <h3 style="margin-top:0; color: var(--accent-color);">Setup beitragen</h3>
+            <h3 style="margin-top:0; color: var(--accent-color);">Boss-Modifikatoren automatisch erfassen</h3>
             <div class="form-group">
-                <label for="uploadLevelSelect">Gruft Tiefe (1-500):</label>
-                <select id="uploadLevelSelect">
-                    </select>
+                <label for="uploadBossLevelSelect">Gruft Tiefe (1-500):</label>
+                <select id="uploadBossLevelSelect"></select>
             </div>
             <div class="form-group">
-                <label for="imageFile">Screenshot (Datei auswählen oder einfach STRG+V drücken):</label>
+                <label for="bossImageFile">Boss-Screenshot hochladen (wird gescannt & danach gelöscht):</label>
+                <input type="file" id="bossImageFile" accept="image/*">
+            </div>
+            <button onclick="scanAndSaveBoss()" style="width: 100%;">Bild scannen & Boss-Daten speichern</button>
+            <div id="bossScanStatus" class="status-msg"></div>
+        </div>
+
+        <!-- UPLOAD: TEAM SCREENSHOT -->
+        <div class="section-box">
+            <h3 style="margin-top:0; color: var(--accent-color);">Erfolgreiches Team beitragen</h3>
+            <div class="form-group">
+                <label for="uploadLevelSelect">Gruft Tiefe (1-500):</label>
+                <select id="uploadLevelSelect"></select>
+            </div>
+            <div class="form-group">
+                <label for="imageFile">Screenshot (Datei oder STRG+V):</label>
                 <input type="file" id="imageFile" accept="image/*">
             </div>
             <div class="form-group">
                 <label for="uploadNote">Notiz / Infos zum Team (Optional):</label>
                 <textarea id="uploadNote" placeholder="Z.B. Teambuilding, wichtige Items, Taktik..."></textarea>
             </div>
-            <button onclick="uploadToSupabase()" style="width: 100%;">Hochladen</button>
+            <button onclick="uploadToSupabase()" style="width: 100%;">Team hinzufügen</button>
             <div id="uploadStatus" class="status-msg"></div>
         </div>
 
+        <!-- ANSEHEN / SUCHE -->
         <div class="section-box">
-            <h3 style="margin-top:0; color: var(--accent-color);">Setups ansehen</h3>
+            <h3 style="margin-top:0; color: var(--accent-color);">Archiv durchsuchen</h3>
             <div class="form-group">
                 <label for="viewLevelSelect">Ebene auswählen:</label>
-                <select id="viewLevelSelect" onchange="showTeamsForLevel()">
-                    </select>
+                <select id="viewLevelSelect" onchange="loadLevelData()">
+                    <!-- Dynamisch -->
+                </select>
             </div>
+            
+            <!-- Hier landen die Boss-Modifikatoren -->
+            <div id="bossDataView"></div>
+            
+            <!-- Hier landen die Teambilder -->
             <div id="imageGallery" style="margin-top: 20px;"></div>
         </div>
     </div>
@@ -147,26 +176,23 @@
         let dbData = {};
 
         window.onload = async () => {
-            buildUploadDropdown(); // Erstellt das 1-500 Dropdown für den Upload
-            setupPasteFeature();   // Aktiviert STRG+V für Edge / Opera
-
+            buildDropdowns();
+            setupPasteFeature();
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) { handleUserSession(session.user); }
         };
 
-        // Befüllt das Upload-Dropdown beim Start
-        function buildUploadDropdown() {
-            const select = document.getElementById('uploadLevelSelect');
-            select.innerHTML = '';
+        function buildDropdowns() {
+            const upTeams = document.getElementById('uploadLevelSelect');
+            const upBoss = document.getElementById('uploadBossLevelSelect');
+            upTeams.innerHTML = ''; upBoss.innerHTML = '';
             for (let i = 1; i <= 500; i++) {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.textContent = `Ebene ${i}`;
-                select.appendChild(opt);
+                const opt1 = document.createElement('option'); opt1.value = i; opt1.textContent = `Ebene ${i}`;
+                const opt2 = document.createElement('option'); opt2.value = i; opt2.textContent = `Ebene ${i}`;
+                upTeams.appendChild(opt1); upBoss.appendChild(opt2);
             }
         }
 
-        // Event-Listener für das Einfügen aus der Zwischenablage (Edge- & Opera-Support)
         function setupPasteFeature() {
             window.addEventListener('paste', (e) => {
                 const items = e.clipboardData.items;
@@ -174,14 +200,11 @@
                     if (items[i].type.indexOf('image') !== -1) {
                         const blob = items[i].getAsFile();
                         const fileInput = document.getElementById('imageFile');
-                        
-                        // Erzeugt ein simuliertes Datei-Objekt für das Input Feld
                         const file = new File([blob], "pasted-image.png", { type: blob.type });
                         const dataTransfer = new DataTransfer();
                         dataTransfer.items.add(file);
                         fileInput.files = dataTransfer.files;
-
-                        document.getElementById('uploadStatus').textContent = "Bild erfolgreich aus Zwischenablage eingefügt!";
+                        document.getElementById('uploadStatus').textContent = "Bild aus Zwischenablage für das Team eingefügt!";
                         document.getElementById('uploadStatus').style.color = "#49e37d";
                     }
                 }
@@ -190,79 +213,47 @@
 
         function toggleAdminLogin(showAdmin) {
             document.getElementById('loginError').style.display = "none";
-            if (showAdmin) {
-                document.getElementById('memberForm').style.display = "none";
-                document.getElementById('adminForm').style.display = "block";
-            } else {
-                document.getElementById('memberForm').style.display = "block";
-                document.getElementById('adminForm').style.display = "none";
-            }
+            document.getElementById('memberForm').style.display = showAdmin ? "none" : "block";
+            document.getElementById('adminForm').style.display = showAdmin ? "block" : "none";
         }
 
         async function loginAsMember() {
             const password = document.getElementById('memberPasswordInput').value;
-            const errorTxt = document.getElementById('loginError');
-            errorTxt.style.display = "none";
             if (!password) { alert("Bitte Passwort eingeben."); return; }
-
-            const { data, error } = await _supabase.auth.signInWithPassword({
-                email: MEMBER_EMAIL, password: password,
-            });
-
-            if (error) { errorTxt.textContent = "Falsches Gilden-Passwort!"; errorTxt.style.display = "block"; return; }
+            const { data, error } = await _supabase.auth.signInWithPassword({ email: MEMBER_EMAIL, password: password });
+            if (error) { document.getElementById('loginError').textContent = "Falsches Gilden-Passwort!"; document.getElementById('loginError').style.display = "block"; return; }
             handleUserSession(data.user);
         }
 
         async function loginAsAdmin() {
             const email = document.getElementById('adminEmailInput').value;
             const password = document.getElementById('adminPasswordInput').value;
-            const errorTxt = document.getElementById('loginError');
-            errorTxt.style.display = "none";
-            if (!email || !password) { alert("Bitte E-Mail und Passwort eingeben."); return; }
-
-            const { data, error } = await _supabase.auth.signInWithPassword({
-                email: email, password: password,
-            });
-
-            if (error) { errorTxt.textContent = "Admin-Login fehlgeschlagen: " + error.message; errorTxt.style.display = "block"; return; }
+            if (!email || !password) { alert("Bitte Daten eingeben."); return; }
+            const { data, error } = await _supabase.auth.signInWithPassword({ email: email, password: password });
+            if (error) { document.getElementById('loginError').textContent = "Login fehlgeschlagen: " + error.message; document.getElementById('loginError').style.display = "block"; return; }
             handleUserSession(data.user);
         }
 
         function handleUserSession(user) {
-            if (user.email === ADMIN_EMAIL) {
-                isAdmin = true;
-                document.getElementById('roleBadge').textContent = "🔒 Admin-Modus";
-                document.getElementById('roleBadge').style.backgroundColor = "var(--admin-color)";
-            } else {
-                isAdmin = false;
-                document.getElementById('roleBadge').textContent = "Nutzer-Modus";
-                document.getElementById('roleBadge').style.backgroundColor = "#382d4d";
-            }
+            isAdmin = (user.email === ADMIN_EMAIL);
+            document.getElementById('roleBadge').textContent = isAdmin ? "🔒 Admin-Modus" : "Nutzer-Modus";
+            document.getElementById('roleBadge').style.backgroundColor = isAdmin ? "var(--admin-color)" : "#382d4d";
             document.getElementById('loginOverlay').style.display = "none";
             document.getElementById('appContainer').style.display = "flex";
-            loadDataFromSupabase();
+            loadInitialDropdownData();
         }
 
-        async function logout() {
-            await _supabase.auth.signOut();
-            window.location.reload();
-        }
+        async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
 
-        async function loadDataFromSupabase() {
-            const { data, error } = await _supabase.from('setups').select('*');
-            if (error) { console.error(error); return; }
+        // Befüllt das Such-Dropdown basierend auf vorhandenen Teams ODER Boss-Daten
+        async function loadInitialDropdownData() {
+            const { data: teams } = await _supabase.from('setups').select('level');
+            const { data: bosses } = await _supabase.from('boss_data').select('level');
 
-            dbData = {};
-            data.forEach(item => {
-                if (!dbData[item.level]) dbData[item.level] = [];
-                dbData[item.level].push({ id: item.id, url: item.image_url, note: item.note });
-            });
+            const activeLevels = new Set();
+            if(teams) teams.forEach(t => activeLevels.add(t.level));
+            if(bosses) bosses.forEach(b => activeLevels.add(b.level));
 
-            populateDropdown();
-            showTeamsForLevel();
-        }
-
-        function populateDropdown() {
             const select = document.getElementById('viewLevelSelect');
             const currentVal = select.value;
             select.innerHTML = '';
@@ -270,52 +261,137 @@
             for (let i = 1; i <= 500; i++) {
                 const opt = document.createElement('option');
                 opt.value = i;
-                const hasTeams = dbData[i] && dbData[i].length > 0;
-                opt.textContent = hasTeams ? `Ebene ${i} (${dbData[i].length} Teams)` : `Ebene ${i} (Kein Eintrag)`;
-                if (!hasTeams) opt.disabled = true;
+                opt.textContent = activeLevels.has(i) ? `Ebene ${i} (Daten vorhanden)` : `Ebene ${i} (Kein Eintrag)`;
+                if (!activeLevels.has(i)) opt.disabled = true;
                 select.appendChild(opt);
             }
-            if (currentVal && dbData[currentVal]) select.value = currentVal;
-            else {
-                const firstAvailable = Object.keys(dbData).find(k => dbData[k].length > 0);
-                if (firstAvailable) select.value = firstAvailable;
+            if (currentVal && activeLevels.has(parseInt(currentVal))) select.value = currentVal;
+            else if (activeLevels.size > 0) select.value = Array.from(activeLevels).sort((a,b)=>a-b)[0];
+
+            loadLevelData();
+        }
+
+        // Lädt sowohl Boss-Modifikatoren als auch Teams für die ausgewählte Stufe
+        async function loadLevelData() {
+            const level = document.getElementById('viewLevelSelect').value;
+            if (!level) return;
+
+            // 1. Boss-Modifikatoren laden
+            const bossView = document.getElementById('bossDataView');
+            bossView.innerHTML = '';
+
+            const { data: boss } = await _supabase.from('boss_data').select('*').eq('level', level).maybeSingle();
+
+            if (boss) {
+                const bossCard = document.createElement('div');
+                bossCard.className = 'boss-info-display';
+                bossCard.innerHTML = `<h3>Boss-Details (Tiefe ${level})</h3><p><strong>Affinität:</strong> ${boss.element}</p><strong>Modifikatoren (Hover für Info):</strong>`;
+                
+                const grid = document.createElement('div');
+                grid.className = 'mod-grid';
+
+                // Hole Erklärungen aus dem Lexikon
+                const { data: library } = await _supabase.from('modifiers_library').select('*').in('name_de', boss.mods);
+                
+                if(library) {
+                    library.forEach(mod => {
+                        const item = document.createElement('div');
+                        item.className = 'mod-item';
+                        item.setAttribute('title', mod.description);
+                        item.innerHTML = `✨ <strong>${mod.name_de}</strong> (${mod.name_en})`;
+                        grid.appendChild(item);
+                    });
+                }
+                bossCard.appendChild(grid);
+                bossView.appendChild(bossCard);
+            }
+
+            // 2. Teams laden
+            const gallery = document.getElementById('imageGallery');
+            gallery.innerHTML = '';
+            const { data: teams } = await _supabase.from('setups').select('*').eq('level', level);
+
+            if (teams && teams.length > 0) {
+                teams.forEach(team => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'team-image-wrapper';
+                    const img = document.createElement('img'); img.src = team.url; wrapper.appendChild(img);
+
+                    if (team.note) {
+                        const nBox = document.createElement('div'); nBox.className = 'team-note-box'; nBox.textContent = team.note; wrapper.appendChild(nBox);
+                    }
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn'; delBtn.textContent = 'Bild Löschen';
+                    if (isAdmin) delBtn.style.display = "block";
+                    delBtn.onclick = () => deleteTeam(team.id, team.url);
+                    
+                    wrapper.appendChild(delBtn); gallery.appendChild(wrapper);
+                });
             }
         }
 
-        function showTeamsForLevel() {
-            const level = document.getElementById('viewLevelSelect').value;
-            const gallery = document.getElementById('imageGallery');
-            gallery.innerHTML = '';
+        // NEU: Bild an die Edge-Function senden, scannen und das Ergebnis direkt in boss_data speichern
+        async function scanAndSaveBoss() {
+            const levelSelect = document.getElementById('uploadBossLevelSelect');
+            const fileInput = document.getElementById('bossImageFile');
+            const status = document.getElementById('bossScanStatus');
 
-            if (!level || !dbData[level] || dbData[level].length === 0) {
-                gallery.innerHTML = '<p style="color: var(--text-muted); text-align:center;">Keine Setups vorhanden.</p>';
-                return;
-            }
+            const level = parseInt(levelSelect.value, 10);
+            if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
 
-            dbData[level].forEach((team) => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'team-image-wrapper';
-                
-                const img = document.createElement('img');
-                img.src = team.url;
-                wrapper.appendChild(img);
+            status.textContent = "Bilderkennung in der Cloud läuft... Bitte warten...";
+            status.style.color = "var(--accent-color)";
 
-                if (team.note && team.note.trim() !== "") {
-                    const noteBox = document.createElement('div');
-                    noteBox.className = 'team-note-box';
-                    noteBox.textContent = team.note; 
-                    wrapper.appendChild(noteBox);
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onloadend = async function () {
+                const base64String = reader.result;
+
+                try {
+                    // 1. Edge Function aufrufen für OCR-Erkennung
+                    const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        },
+                        body: JSON.stringify({ imageBase64: base64String })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // 2. Ergebnis direkt in 'boss_data' upserten (einfügen oder überschreiben falls vorhanden)
+                        const { error: dbError } = await _supabase
+                            .from('boss_data')
+                            .upsert({ 
+                                level: level, 
+                                element: result.element, 
+                                mods: result.modifiers 
+                            });
+
+                        if (dbError) throw dbError;
+
+                        status.textContent = `Boss erfolgreich erfasst! Affinität: ${result.element}. Modifikatoren: ${result.modifiers.join(', ')}`;
+                        status.style.color = "#49e37d";
+                        fileInput.value = '';
+
+                        await loadInitialDropdownData();
+                        document.getElementById('viewLevelSelect').value = level;
+                        loadLevelData();
+                    } else {
+                        status.textContent = "Erkennungsfehler: " + result.error;
+                        status.style.color = "var(--admin-color)";
+                    }
+                } catch (err) {
+                    status.textContent = "Fehler beim Verarbeiten oder Speichern.";
+                    status.style.color = "var(--admin-color)";
+                    console.error(err);
                 }
-
-                const delBtn = document.createElement('button');
-                delBtn.className = 'delete-btn';
-                delBtn.textContent = 'Bild Löschen';
-                if (isAdmin) delBtn.style.display = "block";
-                delBtn.onclick = () => deleteImage(team.id, team.url);
-                
-                wrapper.appendChild(delBtn);
-                gallery.appendChild(wrapper);
-            });
+            };
+            reader.readAsDataURL(file);
         }
 
         async function uploadToSupabase() {
@@ -325,56 +401,38 @@
             const status = document.getElementById('uploadStatus');
 
             const level = parseInt(levelSelect.value, 10);
-            if (!fileInput.files[0]) { alert("Bitte einen Screenshot auswählen oder einfügen."); return; }
+            if (!fileInput.files[0]) { alert("Datei wählen."); return; }
 
-            status.textContent = "Bild wird verarbeitet und hochgeladen...";
+            status.textContent = "Team wird hochgeladen...";
             status.style.color = "var(--accent-color)";
 
             const file = fileInput.files[0];
             const fileExtension = file.name.split('.').pop();
             const anonymousFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`;
 
-            const { error: storageError } = await _supabase.storage
-                .from('gruft-bilder')
-                .upload(anonymousFileName, file);
-
-            if (storageError) {
-                status.textContent = "Fehler: " + storageError.message;
-                status.style.color = "var(--admin-color)";
-                return;
-            }
+            const { error: storageError } = await _supabase.storage.from('gruft-bilder').upload(anonymousFileName, file);
+            if (storageError) { status.textContent = "Fehler: " + storageError.message; status.style.color = "var(--admin-color)"; return; }
 
             const { data: urlData } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
-            const publicUrl = urlData.publicUrl;
+            
+            const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: urlData.publicUrl, note: noteInput.value.trim() || null }]);
+            if (dbError) { status.textContent = "Fehler: " + dbError.message; status.style.color = "var(--admin-color)"; return; }
 
-            const noteValue = noteInput.value.trim();
-
-            const { error: dbError } = await _supabase
-                .from('setups')
-                .insert([{ level: level, image_url: publicUrl, note: noteValue || null }]);
-
-            if (dbError) {
-                status.textContent = "Fehler: " + dbError.message;
-                status.style.color = "var(--admin-color)";
-                return;
-            }
-
-            status.textContent = "Erfolgreich gespeichert!";
+            status.textContent = "Team erfolgreich gespeichert!";
             status.style.color = "#49e37d";
-            fileInput.files = new DataTransfer().files; // Setzt das Clipboard-Feld sauber zurück
             fileInput.value = ''; noteInput.value = '';
             
-            await loadDataFromSupabase();
+            await loadInitialDropdownData();
             document.getElementById('viewLevelSelect').value = level;
-            showTeamsForLevel();
+            loadLevelData();
         }
 
-        async function deleteImage(id, url) {
-            if (!confirm("Dieses Setup wirklich unwiderruflich löschen?")) return;
+        async function deleteTeam(id, url) {
+            if (!confirm("Dieses Setup löschen?")) return;
             const fileName = url.split('/').pop();
             await _supabase.storage.from('gruft-bilder').remove([fileName]);
             await _supabase.from('setups').delete().eq('id', id);
-            await loadDataFromSupabase();
+            await loadInitialDropdownData();
         }
     </script>
 </body>
