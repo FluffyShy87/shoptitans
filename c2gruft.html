@@ -56,12 +56,14 @@
         .team-note-box { background-color: #161120; padding: 12px; border-top: 1px solid var(--border-color); font-size: 14px; color: #e2daf0; }
         
         /* Modifikatoren Grid */
-        .boss-info-display { background: #161120; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 15px; }
+        .boss-info-display { position: relative; background: #161120; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 15px; }
         .mod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
         .mod-item { background-color: #251d34; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); cursor: help; font-size: 14px; }
         .mod-item:hover { border-color: var(--accent-color); }
 
-        .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; z-index: 10; }
+        .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; z-index: 10; border: none; cursor: pointer; }
+        .delete-boss-btn { display: none; position: absolute; top: 15px; right: 15px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; }
+        
         .logout-btn { position: absolute; top: 0; right: 0; background: #382d4d; color: white; padding: 6px 12px; font-size: 12px; }
         .logout-btn:hover { background: var(--admin-color); }
         .admin-toggle-link { display: inline-block; margin-top: 15px; font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
@@ -111,7 +113,7 @@
             <span id="roleBadge" style="font-size: 12px; background: #382d4d; padding: 4px 10px; border-radius: 20px;">Nutzer-Modus</span>
         </header>
 
-        <!-- NEU: BOSS-MODIFIKATOREN AUTOMATISCH MIT BILD SCANNEN (Für jeden erlaubt) -->
+        <!-- BOSS-MODIFIKATOREN AUTOMATISCH MIT BILD SCANNEN -->
         <div class="section-box">
             <h3 style="margin-top:0; color: var(--accent-color);">Boss-Modifikatoren automatisch erfassen</h3>
             <div class="form-group">
@@ -164,7 +166,6 @@
     </div>
 
     <script>
-        // CONFIG - Hier deine echten Projektdaten eintragen
         const SUPABASE_URL = 'https://lmqpjhxoihjiepqhfeek.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtcXBqaHhvaWhqaWVwcWhmZWVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODUwMzksImV4cCI6MjA5ODE2MTAzOX0.YvZp6rXlqDp59YOqtA2fQ6aaTLpR0Fz-mmqZ6OswU2Y';
 
@@ -173,7 +174,6 @@
 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let isAdmin = false;
-        let dbData = {};
 
         window.onload = async () => {
             buildDropdowns();
@@ -245,7 +245,6 @@
 
         async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
 
-        // Befüllt das Such-Dropdown basierend auf vorhandenen Teams ODER Boss-Daten
         async function loadInitialDropdownData() {
             const { data: teams } = await _supabase.from('setups').select('level');
             const { data: bosses } = await _supabase.from('boss_data').select('level');
@@ -271,7 +270,7 @@
             loadLevelData();
         }
 
-        // Lädt sowohl Boss-Modifikatoren als auch Teams für die ausgewählte Stufe
+        // KORRIGIERT: Keine Doppelanzeigen mehr und saubere Bild-URLs
         async function loadLevelData() {
             const level = document.getElementById('viewLevelSelect').value;
             if (!level) return;
@@ -285,20 +284,33 @@
             if (boss) {
                 const bossCard = document.createElement('div');
                 bossCard.className = 'boss-info-display';
-                bossCard.innerHTML = `<h3>Boss-Details (Tiefe ${level})</h3><p><strong>Affinität:</strong> ${boss.element}</p><strong>Modifikatoren (Hover für Info):</strong>`;
+                
+                let deleteButtonHtml = '';
+                if (isAdmin) {
+                    deleteButtonHtml = `<button class="delete-boss-btn" style="display: block;" onclick="deleteBossData(${boss.level})">Boss-Eintrag löschen</button>`;
+                }
+
+                bossCard.innerHTML = `
+                    <h3>Boss-Details (Tiefe ${level})</h3>
+                    ${deleteButtonHtml}
+                    <p><strong>Affinität:</strong> ${boss.element}</p>
+                    <strong>Modifikatoren (Hover für Info):</strong>
+                `;
                 
                 const grid = document.createElement('div');
                 grid.className = 'mod-grid';
 
-                // Hole Erklärungen aus dem Lexikon
                 const { data: library } = await _supabase.from('modifiers_library').select('*').in('name_de', boss.mods);
                 
                 if(library) {
                     library.forEach(mod => {
                         const item = document.createElement('div');
                         item.className = 'mod-item';
-                        item.setAttribute('title', mod.description);
-                        item.innerHTML = `✨ <strong>${mod.name_de}</strong> (${mod.name_en})`;
+                        item.setAttribute('title', mod.description || "Keine Beschreibung hinterlegt.");
+                        
+                        // Fallback falls der englische Name in der DB noch NULL ist
+                        const englName = mod.name_en ? ` (${mod.name_en})` : '';
+                        item.innerHTML = `✨ <strong>${mod.name_de}</strong>${englName}`;
                         grid.appendChild(item);
                     });
                 }
@@ -315,7 +327,9 @@
                 teams.forEach(team => {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'team-image-wrapper';
-                    const img = document.createElement('img'); img.src = team.url; wrapper.appendChild(img);
+                    const img = document.createElement('img'); 
+                    img.src = team.image_url; // Korrigiert auf image_url Spalte
+                    wrapper.appendChild(img);
 
                     if (team.note) {
                         const nBox = document.createElement('div'); nBox.className = 'team-note-box'; nBox.textContent = team.note; wrapper.appendChild(nBox);
@@ -324,14 +338,13 @@
                     const delBtn = document.createElement('button');
                     delBtn.className = 'delete-btn'; delBtn.textContent = 'Bild Löschen';
                     if (isAdmin) delBtn.style.display = "block";
-                    delBtn.onclick = () => deleteTeam(team.id, team.url);
+                    delBtn.onclick = () => deleteTeam(team.id, team.image_url);
                     
                     wrapper.appendChild(delBtn); gallery.appendChild(wrapper);
                 });
             }
         }
 
-        // NEU: Bild an die Edge-Function senden, scannen und das Ergebnis direkt in boss_data speichern
         async function scanAndSaveBoss() {
             const levelSelect = document.getElementById('uploadBossLevelSelect');
             const fileInput = document.getElementById('bossImageFile');
@@ -350,7 +363,6 @@
                 const base64String = reader.result;
 
                 try {
-                    // 1. Edge Function aufrufen für OCR-Erkennung
                     const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
                         method: 'POST',
                         headers: {
@@ -363,14 +375,9 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        // 2. Ergebnis direkt in 'boss_data' upserten (einfügen oder überschreiben falls vorhanden)
                         const { error: dbError } = await _supabase
                             .from('boss_data')
-                            .upsert({ 
-                                level: level, 
-                                element: result.element, 
-                                mods: result.modifiers 
-                            });
+                            .upsert({ level: level, element: result.element, mods: result.modifiers });
 
                         if (dbError) throw dbError;
 
@@ -394,6 +401,7 @@
             reader.readAsDataURL(file);
         }
 
+        // KORRIGIERT: Robuster Bild-URL-Pfad für fehlerfreie Anzeige
         async function uploadToSupabase() {
             const levelSelect = document.getElementById('uploadLevelSelect');
             const fileInput = document.getElementById('imageFile');
@@ -413,9 +421,11 @@
             const { error: storageError } = await _supabase.storage.from('gruft-bilder').upload(anonymousFileName, file);
             if (storageError) { status.textContent = "Fehler: " + storageError.message; status.style.color = "var(--admin-color)"; return; }
 
-            const { data: urlData } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
+            // Sicherer URL-Abruf
+            const { data } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
+            const publicUrl = data.publicUrl;
             
-            const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: urlData.publicUrl, note: noteInput.value.trim() || null }]);
+            const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: publicUrl, note: noteInput.value.trim() || null }]);
             if (dbError) { status.textContent = "Fehler: " + dbError.message; status.style.color = "var(--admin-color)"; return; }
 
             status.textContent = "Team erfolgreich gespeichert!";
@@ -425,6 +435,19 @@
             await loadInitialDropdownData();
             document.getElementById('viewLevelSelect').value = level;
             loadLevelData();
+        }
+
+        // NEU: Admin-Funktion zum vollständigen Löschen des Boss-Eintrags eines Levels
+        async function deleteBossData(level) {
+            if (!confirm(`Möchtest du die Boss-Modifikatoren für Ebene ${level} wirklich komplett löschen?`)) return;
+            
+            const { error } = await _supabase.from('boss_data').delete().eq('level', level);
+            
+            if (error) {
+                alert("Fehler beim Löschen: " + error.message);
+            } else {
+                await loadInitialDropdownData();
+            }
         }
 
         async function deleteTeam(id, url) {
