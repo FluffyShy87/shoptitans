@@ -388,17 +388,12 @@ async function scanAndSaveBoss() {
 
                 if (dbError) throw dbError;
 
-                status.textContent = `Boss erfolgreich erfasst! Affinität: ${result.element}. Modifikatoren: ${result.modifiers.join(', ')}`;
+                status.textContent = `Boss erfolgreich erfasst!`;
                 status.style.color = "#49e37d";
                 fileInput.value = '';
 
-                // JETZT NEU: Erst die Ansichten leeren, dann neu aufbauen
-                document.getElementById('bossDataView').innerHTML = '';
-                document.getElementById('imageGallery').innerHTML = '';
-
-                await loadInitialDropdownData();
-                document.getElementById('viewLevelSelect').value = level;
-                loadLevelData();
+                // SMART REFRESH: Seite hart neu laden, um Geister-Einträge zu killen
+                window.location.reload();
             } else {
                 status.textContent = "Erkennungsfehler: " + result.error;
                 status.style.color = "var(--admin-color)";
@@ -441,14 +436,10 @@ async function uploadToSupabase() {
     status.style.color = "#49e37d";
     fileInput.value = ''; noteInput.value = '';
     
-    // JETZT NEU: Erst die Ansichten leeren, dann neu aufbauen
-    document.getElementById('bossDataView').innerHTML = '';
-    document.getElementById('imageGallery').innerHTML = '';
-
-    await loadInitialDropdownData();
-    document.getElementById('viewLevelSelect').value = level;
-    loadLevelData();
+    // SMART REFRESH: Seite hart neu laden, um Geister-Einträge zu killen
+    window.location.reload();
 }
+
         // NEU: Admin-Funktion zum vollständigen Löschen des Boss-Eintrags eines Levels
         async function deleteBossData(level) {
             if (!confirm(`Möchtest du die Boss-Modifikatoren für Ebene ${level} wirklich komplett löschen?`)) return;
