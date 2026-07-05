@@ -367,50 +367,47 @@ async function scanAndSaveBoss() {
     const file = fileInput.files[0];
 
     try {
-        // Direkte Konvertierung der rohen Datei in ein Bitmap-Objekt (Umgeht CORS/Tainted Canvas)
         const imageBitmap = await createImageBitmap(file);
-        
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = imageBitmap.width;
-        canvas.height = imageBitmap.height;
-        ctx.drawImage(imageBitmap, 0, 0);
-
-        // Exakte Koordinaten des Element-Schildes (ca. bei 19% Breite, 24% Höhe)
-        const targetX = Math.floor(imageBitmap.width * 0.19);
-        const targetY = Math.floor(imageBitmap.height * 0.24);
-
-        // Eine 5x5 Pixel Stichprobe nehmen
-        const pixelData = ctx.getImageData(targetX, targetY, 5, 5).data;
         
-        let r = 0, g = 0, b = 0;
-        for (let i = 0; i < pixelData.length; i += 4) {
-            r += pixelData[i];
-            g += pixelData[i+1];
-            b += pixelData[i+2];
+        // Wir verkleinern das Bild extrem auf 50x50 Pixel. 
+        // Das führt dazu, dass der Browser alle Farben herrunterrechnet und wir die dominante Farbe erhalten!
+        canvas.width = 50;
+        canvas.height = 50;
+        ctx.drawImage(imageBitmap, 0, 0, 50, 50);
+
+        const pixelData = ctx.getImageData(0, 0, 50, 50).data;
+        
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        // Wir scannen das obere Drittel des verkleinerten Bildes nach dominanten Farbtönen
+        for (let i = 0; i < pixelData.length * 0.4; i += 4) {
+            rSum += pixelData[i];
+            gSum += pixelData[i+1];
+            bSum += pixelData[i+2];
+            count++;
         }
         
-        r = Math.floor(r / (pixelData.length / 4));
-        g = Math.floor(g / (pixelData.length / 4));
-        b = Math.floor(b / (pixelData.length / 4));
+        const r = Math.floor(rSum / count);
+        const g = Math.floor(gSum / count);
+        const b = Math.floor(bSum / count);
 
-        console.log(`Erkannte Schild-Farbe (RGB): ${r}, ${g}, ${b}`);
+        console.log(`Dominante Banner-Farbe (RGB): ${r}, ${g}, ${b}`);
 
-        // Abgleich mit den Elementfarben
-        let erkanntesElement = "Luft"; // Fallback
-        if (r > 130 && g < 80 && b < 80) erkanntesElement = "Feuer";
-        else if (g > 100 && r < 110 && b < 100) erkanntesElement = "Erde";
-        else if (b > 120 && r < 100 && g > 90) erkanntesElement = "Wasser";
-        else if (r > 160 && g > 140 && b < 100) erkanntesElement = "Licht";
-        else if (r > 60 && b > 80 && g < 60) erkanntesElement = "Schatten";
-        else if (r > 120 && g > 130 && b > 140) erkanntesElement = "Luft";
+        // Eine viel breitere Farbtoleranz für das Boss-UI
+        let erkanntesElement = "Luft"; 
+        if (r > g && r > b && r > 80) erkanntesElement = "Feuer";
+        else if (g > r && g > b && g > 70) erkanntesElement = "Erde";
+        else if (b > r && b > g && b > 90) erkanntesElement = "Wasser";
+        else if (r > 130 && g > 120 && b < 100) erkanntesElement = "Licht";
+        else if (r > 40 && b > 50 && g < 40) erkanntesElement = "Schatten";
 
-        // Jetzt wandeln wir das Bild für die OCR-Übertragung um
         const reader = new FileReader();
         reader.onloadend = async function () {
             const base64String = reader.result;
 
             try {
+                // Sicherheits-Fallback: Wir schicken den rohen OCR-Text ebenfalls mit
                 const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
                     method: 'POST',
                     headers: {
@@ -426,6 +423,14 @@ async function scanAndSaveBoss() {
                 const result = await response.json();
 
                 if (result.success) {
+                    // Wenn die Cloud trotz allem KEINE Modifikatoren gefunden hat (OCR fehlgeschlagen),
+                    // brechen wir ab und laden nicht neu, damit der User die Fehlermeldung sieht!
+                    if (!result.modifiers || result.modifiers.length === 0) {
+                        status.textContent = "Fehler: Die Texterkennung (OCR) hat auf diesem Bild keine Modifikatoren lesen können. Bitte lade ein schärferes Bild hoch.";
+                        status.style.color = "var(--admin-color)";
+                        return;
+                    }
+
                     const { error: dbError } = await _supabase
                         .from('boss_data')
                         .upsert({ level: level, element: result.element, mods: result.modifiers });
@@ -450,9 +455,8 @@ async function scanAndSaveBoss() {
         reader.readAsDataURL(file);
 
     } catch (bitmapError) {
-        status.textContent = "Fehler bei der Bildanalyse im Browser.";
+        status.textContent = "Fehler bei der Bildanalyse.";
         status.style.color = "var(--admin-color)";
-        console.error(bitmapError);
     }
 }
 
