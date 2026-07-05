@@ -60,7 +60,14 @@
         .mod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
         .mod-item { background-color: #251d34; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); cursor: help; font-size: 14px; }
         .mod-item:hover { border-color: var(--accent-color); }
+	/* Dein bestehendes Hover-CSS erweitern */
+	.mod-item:hover .tooltip,
+	.mod-item.active .tooltip {
+   	visibility: visible;
+  	opacity: 1;
 
+    	display: block; /* Je nachdem wie dein Tooltip aufgebaut ist */
+}
         .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; z-index: 10; border: none; cursor: pointer; }
         .delete-boss-btn { display: none; position: absolute; top: 15px; right: 15px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; }
         
@@ -114,7 +121,7 @@
         </header>
 
         <!-- BOSS-MODIFIKATOREN AUTOMATISCH MIT BILD SCANNEN -->
-        <div class="section-box">
+        <div class="card upload-section">
             <h3 style="margin-top:0; color: var(--accent-color);">Boss-Modifikatoren automatisch erfassen</h3>
             <div class="form-group">
                 <label for="uploadBossLevelSelect">Gruft Tiefe (1-500):</label>
@@ -129,7 +136,7 @@
         </div>
 
         <!-- UPLOAD: TEAM SCREENSHOT -->
-        <div class="section-box">
+        <div class="card upload-section">
             <h3 style="margin-top:0; color: var(--accent-color);">Erfolgreiches Team beitragen</h3>
             <div class="form-group">
                 <label for="uploadLevelSelect">Gruft Tiefe (1-500):</label>
@@ -148,7 +155,7 @@
         </div>
 
         <!-- ANSEHEN / SUCHE -->
-        <div class="section-box">
+        <div class="card search-section">
             <h3 style="margin-top:0; color: var(--accent-color);">Archiv durchsuchen</h3>
             <div class="form-group">
                 <label for="viewLevelSelect">Ebene auswählen:</label>
@@ -440,17 +447,25 @@ async function uploadToSupabase() {
 }
 
         // NEU: Admin-Funktion zum vollständigen Löschen des Boss-Eintrags eines Levels
-        async function deleteBossData(level) {
-            if (!confirm(`Möchtest du die Boss-Modifikatoren für Ebene ${level} wirklich komplett löschen?`)) return;
-            
-            const { error } = await _supabase.from('boss_data').delete().eq('level', level);
-            
-            if (error) {
-                alert("Fehler beim Löschen: " + error.message);
-            } else {
-                await loadInitialDropdownData();
-            }
-        }
+	async function deleteBossEintrag(level) {
+    if (!confirm(`Möchtest du den Boss auf Ebene ${level} wirklich aus dem Archiv löschen?`)) return;
+
+    try {
+        const { error } = await _supabase
+            .from('boss_data')
+            .delete()
+            .eq('level', level);
+
+        if (error) throw error;
+
+        // Macht den gelöschten Eintrag sofort im GUI unsichtbar
+        window.location.reload(); 
+
+    } catch (err) {
+        console.error("Fehler beim Löschen:", err);
+        alert("Eintrag konnte nicht gelöscht werden.");
+    }
+}
 
         async function deleteTeam(id, url) {
             if (!confirm("Dieses Setup löschen?")) return;
@@ -459,6 +474,43 @@ async function uploadToSupabase() {
             await _supabase.from('setups').delete().eq('id', id);
             await loadInitialDropdownData();
         }
+
+        if (error) throw error;
+
+        // Macht den gelöschten Eintrag sofort im GUI unsichtbar
+        window.location.reload(); 
+
+    } catch (err) {
+        console.error("Fehler beim Löschen:", err);
+        alert("Eintrag konnte nicht gelöscht werden.");
+    }
+document.addEventListener('DOMContentLoaded', () => {
+    // Registriert Klicks auf Modifikatoren (Passe die Klasse .mod-item an deine Struktur an)
+    document.querySelectorAll('.mod-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            // Falls wir auf dem Handy sind, verhindern wir das Standardverhalten
+            if (window.innerWidth <= 768) {
+                e.stopPropagation();
+                
+                // Schließe alle anderen offenen Tooltips
+                document.querySelectorAll('.mod-item').forEach(el => {
+                    if (el !== item) el.classList.remove('active');
+                });
+                
+                // Schalte den aktuellen Tooltip um (an/aus)
+                item.classList.toggle('active');
+            }
+        });
+    });
+
+    // Schließt den Tooltip, wenn man irgendwo anders hinklickt
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.mod-item').forEach(el => {
+            el.classList.remove('active');
+        });
+    });
+});
+
     </script>
 </body>
 </html>
