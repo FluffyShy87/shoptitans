@@ -1,0 +1,439 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Investauswertung</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background: #f4f4f4;
+}
+h1 {
+    margin-bottom: 5px;
+}
+.info {
+    margin-bottom: 15px;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background: white;
+    font-size: 14px;
+}
+th, td {
+    border: 1px solid #333;
+    padding: 6px 8px;
+    text-align: right;
+}
+th {
+    background: #00a9d6;
+    color: white;
+}
+td.name {
+    text-align: left;
+    font-weight: bold;
+}
+td.center {
+    text-align: center;
+}
+tr:nth-child(even) {
+    background: #d9d9d9;
+}
+
+.rank1 {
+    background: #00b050 !important;
+    color: black;
+    font-weight: bold;
+    animation: goldGlow 1.8s infinite alternate;
+}
+
+.rank2 {
+    background: #92d050 !important;
+    color: black;
+    font-weight: bold;
+    animation: silverGlow 1.8s infinite alternate;
+}
+
+.rank3 {
+    background: #ffff00 !important;
+    color: black;
+    font-weight: bold;
+    animation: bronzeGlow 1.8s infinite alternate;
+}
+
+@keyframes goldGlow {
+    from { box-shadow: inset 0 0 0px #ffd700; }
+    to { box-shadow: inset 0 0 18px #ffd700; }
+}
+
+@keyframes silverGlow {
+    from { box-shadow: inset 0 0 0px #ffffff; }
+    to { box-shadow: inset 0 0 18px #ffffff; }
+}
+
+@keyframes bronzeGlow {
+    from { box-shadow: inset 0 0 0px #ff9900; }
+    to { box-shadow: inset 0 0 18px #ff9900; }
+}
+
+
+.total {
+    background: #3399ff !important;
+    font-weight: bold;
+}
+.comment {
+    text-align: left;
+}
+
+tr {
+    cursor: pointer;
+}
+
+.selected-row td {
+    outline: 3px solid #ff00ff;
+}
+
+.alert {
+    display: inline-block;
+    animation: blinkAlert 0.8s infinite alternate;
+}
+
+@keyframes blinkAlert {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0.25;
+        transform: scale(1.25);
+    }
+}
+
+</style>
+</head>
+<body>
+
+<h1>Investauswertung</h1>
+<div class="info">
+<b>Stand:</b> 31.07.2026 00:05<br>
+<b>Gilde:</b> PhönixSchmiede<br>
+<b>API-Update:</b> 2026-07-30 21:46:42<br>
+<b>Soll-Invest pro Monat:</b> 100.000.000.000<br>
+<b>Soll-Invest per heute:</b> 100.000.000.000
+
+</div>
+
+<table>
+<tr>
+    <th>Nickname</th>
+    <th>Level</th>
+    <th>altes Invest [G]</th>
+    <th>neues Invest [G]</th>
+    <th>Invest [G]</th>
+    <th>ΔVormonat [%]</th>
+    <th>Spieler</th>
+    <th>Kommentar</th>
+</tr>
+
+
+<tr class="rank1" onclick="selectRow(this)">
+    <td class="name">🥇 [Px]Arzock#61831</td>
+    <td class="center">96</td>
+    <td>3.973.557.352.945</td>
+    <td>4.804.857.352.945</td>
+    <td>831.300.000.000</td>
+    <td>20.92%</td>
+    <td>1</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="rank2" onclick="selectRow(this)">
+    <td class="name">🥈 [Px]Luy#63034</td>
+    <td class="center">90</td>
+    <td>1.219.957.374.500</td>
+    <td>1.909.957.374.500</td>
+    <td>690.000.000.000</td>
+    <td>56.56%</td>
+    <td>2</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="rank3" onclick="selectRow(this)">
+    <td class="name">🥉 Silvaner#57831</td>
+    <td class="center">196</td>
+    <td>11.019.957.374.500</td>
+    <td>11.649.957.374.500</td>
+    <td>630.000.000.000</td>
+    <td>5.72%</td>
+    <td>3</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">[Px]Doofie#37428</td>
+    <td class="center">96</td>
+    <td>4.125.457.374.500</td>
+    <td>4.664.957.374.500</td>
+    <td>539.500.000.000</td>
+    <td>13.08%</td>
+    <td>4</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">[Px]Phantom#49892</td>
+    <td class="center">98</td>
+    <td>3.701.457.374.500</td>
+    <td>4.119.157.374.500</td>
+    <td>417.700.000.000</td>
+    <td>11.28%</td>
+    <td>5</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Udzi#23028</td>
+    <td class="center">98</td>
+    <td>5.265.053.642.900</td>
+    <td>5.639.953.642.900</td>
+    <td>374.900.000.000</td>
+    <td>7.12%</td>
+    <td>6</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">[Px]Khalüsi#35773</td>
+    <td class="center">93</td>
+    <td>1.444.957.374.500</td>
+    <td>1.694.957.374.500</td>
+    <td>250.000.000.000</td>
+    <td>17.30%</td>
+    <td>7</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Marv#78516</td>
+    <td class="center">94</td>
+    <td>1.242.957.374.500</td>
+    <td>1.378.657.374.500</td>
+    <td>135.700.000.000</td>
+    <td>10.92%</td>
+    <td>8</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">[Px]Zark#16158</td>
+    <td class="center">89</td>
+    <td>802.607.374.500</td>
+    <td>931.457.374.500</td>
+    <td>128.850.000.000</td>
+    <td>16.05%</td>
+    <td>9</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Feñhuà#38589</td>
+    <td class="center">88</td>
+    <td>5.335.957.374.500</td>
+    <td>5.458.557.374.500</td>
+    <td>122.600.000.000</td>
+    <td>2.30%</td>
+    <td>10</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">BEAG#57942</td>
+    <td class="center">79</td>
+    <td>317.497.374.500</td>
+    <td>405.347.374.500</td>
+    <td>87.850.000.000<span class="alert"> 🚨</span></td>
+    <td>27.67%</td>
+    <td>11</td>
+    <td class="comment">Neuer Member</td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">[Px]Suna#35263</td>
+    <td class="center">88</td>
+    <td>1.425.207.374.500</td>
+    <td>1.477.307.374.500</td>
+    <td>52.100.000.000<span class="alert"> 🚨</span></td>
+    <td>3.66%</td>
+    <td>12</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">PopoPirat09#66750</td>
+    <td class="center">78</td>
+    <td>509.057.374.500</td>
+    <td>560.287.374.500</td>
+    <td>51.230.000.000<span class="alert"> 🚨</span></td>
+    <td>10.06%</td>
+    <td>13</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">DaJango#83286</td>
+    <td class="center">66</td>
+    <td>84.483.374.500</td>
+    <td>114.129.374.500</td>
+    <td>29.646.000.000<span class="alert"> 🚨</span></td>
+    <td>35.09%</td>
+    <td>14</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Beag&#x27;sHexe#53657</td>
+    <td class="center">70</td>
+    <td>84.731.374.500</td>
+    <td>106.005.374.500</td>
+    <td>21.274.000.000<span class="alert"> 🚨</span></td>
+    <td>25.11%</td>
+    <td>15</td>
+    <td class="comment">Neuer Member</td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Chris170198#50075</td>
+    <td class="center">81</td>
+    <td>282.684.329.200</td>
+    <td>287.437.329.200</td>
+    <td>4.753.000.000<span class="alert"> 🚨</span></td>
+    <td>1.68%</td>
+    <td>16</td>
+    <td class="comment">Neuer Member</td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Maga1958#87329</td>
+    <td class="center">76</td>
+    <td>51.241.674.500</td>
+    <td>53.582.574.500</td>
+    <td>2.340.900.000<span class="alert"> 🚨</span></td>
+    <td>4.57%</td>
+    <td>17</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Gravity#68973</td>
+    <td class="center">71</td>
+    <td>27.906.474.500</td>
+    <td>29.761.374.500</td>
+    <td>1.854.900.000<span class="alert"> 🚨</span></td>
+    <td>6.65%</td>
+    <td>18</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">FManu#12125</td>
+    <td class="center">54</td>
+    <td>1.353.505.400</td>
+    <td>1.931.230.400</td>
+    <td>577.725.000<span class="alert"> 🚨</span></td>
+    <td>42.68%</td>
+    <td>19</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Floroon#24460</td>
+    <td class="center">94</td>
+    <td>10.010.957.374.500</td>
+    <td>10.010.957.374.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>20</td>
+    <td class="comment"></td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">TheDarkAngel#27166</td>
+    <td class="center"></td>
+    <td>193.983.674.400</td>
+    <td>193.983.674.400</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>21</td>
+    <td class="comment">Hat Gilde verlassen</td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Dibny#53174</td>
+    <td class="center"></td>
+    <td>22.058.474.500</td>
+    <td>22.058.474.500</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>22</td>
+    <td class="comment">Hat Gilde verlassen</td>
+</tr>
+
+
+<tr class="" onclick="selectRow(this)">
+    <td class="name">Thilo#19118</td>
+    <td class="center"></td>
+    <td>631.485.400</td>
+    <td>631.485.400</td>
+    <td>0<span class="alert"> 🚨</span></td>
+    <td>0.00%</td>
+    <td>23</td>
+    <td class="comment">Hat Gilde verlassen</td>
+</tr>
+
+<tr>
+    <td class="total">Gesamt</td>
+    <td class="total"></td>
+    <td class="total">51.143.713.856.745</td>
+    <td class="total"></td>
+    <td class="total">4.372.176.525.000</td>
+    <td class="total">8.55%</td>
+    <td class="total"></td>
+    <td class="total"></td>
+</tr>
+</table>
+
+<script>
+function selectRow(row) {
+    document.querySelectorAll("tr").forEach(r => {
+        r.classList.remove("selected-row");
+    });
+
+    row.classList.add("selected-row");
+}
+</script>
+
+</body>
+</html>
