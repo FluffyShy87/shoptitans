@@ -685,20 +685,6 @@
         let pendingImportRows = null;
         let pendingImportTeamRows = null;
 
-        function parseCsvLine(line) {
-            const result = [];
-            let cur = "";
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                if (char === '"') { inQuotes = !inQuotes; }
-                else if (char === "," && !inQuotes) { result.push(cur.trim()); cur = ""; }
-                else { cur += char; }
-            }
-            result.push(cur.trim());
-            return result;
-        }
-
         async function previewSheetImport() {
             const sheetUrl = document.getElementById('sheetUrlInput').value.trim();
             const status = document.getElementById('sheetImportStatus');
@@ -712,7 +698,7 @@
             status.style.color = "var(--accent-color)";
 
             try {
-                const response = await fetch(`${SUPABASE_URL}/functions/v1/fetch-sheet-csv`, {
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/fetch-sheet-values`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -723,8 +709,7 @@
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error || "Unbekannter Fehler beim Laden.");
 
-                const lines = result.csv.split(/\r?\n/).filter(l => l.trim().length > 0);
-                const dataLines = lines.slice(2); // Titel- und Kopfzeile überspringen
+                const dataRows = (result.rows || []).slice(2); // Titel- und Kopfzeile überspringen
 
                 const { data: library } = await _supabase.from('modifiers_library').select('name_de, name_en');
                 const { data: existingRows } = await _supabase.from('boss_data').select('level');
@@ -746,8 +731,7 @@
                 const teamRows = [];
                 const unknownElements = [];
 
-                for (const line of dataLines) {
-                    const cols = parseCsvLine(line);
+                for (const cols of dataRows) {
                     const level = parseInt(cols[0], 10);
                     if (!level || isNaN(level)) continue; // Keine gültige Ebene mehr -> Ende der Tabelle erreicht
 
