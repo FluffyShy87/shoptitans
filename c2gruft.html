@@ -239,6 +239,18 @@
                     <label for="uploadNote">Notiz / Infos zum Team (Optional):</label>
                     <textarea id="uploadNote" placeholder="Z.B. Teambuilding, Items..."></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="uploadBooster">Kraftbooster (Optional):</label>
+                    <select id="uploadBooster">
+                        <option value="">- Keiner -</option>
+                        <option value="Kraftschub">Kraftschub</option>
+                        <option value="Super-Kraft-Schub">Super-Kraft-Schub</option>
+                        <option value="Mega-Kraft-Schub">Mega-Kraft-Schub</option>
+                        <option value="Gesegnete Laterne">Gesegnete Laterne</option>
+                        <option value="Super Gesegnete Laterne">Super Gesegnete Laterne</option>
+                        <option value="Mega Gesegnete Laterne">Mega Gesegnete Laterne</option>
+                    </select>
+                </div>
                 <button onclick="uploadToSupabase()" style="width: 100%;">Team hinzufügen</button>
                 <div id="uploadStatus" class="status-msg"></div>
             </div>
@@ -512,6 +524,14 @@
                     img.src = team.image_url; 
                     wrapper.appendChild(img);
 
+                    if (team.booster) {
+                        const bBox = document.createElement('div');
+                        bBox.className = 'team-note-box';
+                        bBox.style.borderTop = team.note ? 'none' : '1px solid var(--border-color)';
+                        bBox.innerHTML = `<strong>Kraftbooster:</strong> ${team.booster}`;
+                        wrapper.appendChild(bBox);
+                    }
+
                     if (team.note) {
                         const nBox = document.createElement('div'); 
                         nBox.className = 'team-note-box'; 
@@ -588,6 +608,7 @@
             const levelSelect = document.getElementById('uploadLevelSelect');
             const fileInput = document.getElementById('imageFile');
             const noteInput = document.getElementById('uploadNote');
+            const boosterInput = document.getElementById('uploadBooster');
             const status = document.getElementById('uploadStatus');
 
             const level = parseInt(levelSelect.value, 10);
@@ -606,12 +627,17 @@
             const { data } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
             const publicUrl = data.publicUrl;
             
-            const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: publicUrl, note: noteInput.value.trim() || null }]);
+            const { error: dbError } = await _supabase.from('setups').insert([{
+                level: level,
+                image_url: publicUrl,
+                note: noteInput.value.trim() || null,
+                booster: boosterInput.value || null
+            }]);
             if (dbError) { status.textContent = "Fehler: " + dbError.message; status.style.color = "var(--admin-color)"; return; }
 
             status.textContent = "Team erfolgreich gespeichert!";
             status.style.color = "#49e37d";
-            fileInput.value = ''; noteInput.value = '';
+            fileInput.value = ''; noteInput.value = ''; boosterInput.value = '';
             
             window.location.reload();
         }
