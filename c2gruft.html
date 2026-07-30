@@ -301,7 +301,7 @@
         <div class="card" id="adminDangerZone" style="display: none; border-color: var(--admin-color);">
             <h3 style="margin-top:0; color: var(--admin-color);">⚠ Archiv zurücksetzen (nur Admin)</h3>
             <p style="color: var(--text-muted); font-size: 14px;">
-                Löscht ALLE Team-Screenshots und Boss-Daten aus dem gesamten Archiv (alle 500 Ebenen) unwiderruflich.
+                Löscht ALLE Team-Screenshots, Boss-Daten und importierten Team-Vorschläge aus dem gesamten Archiv (alle 500 Ebenen) unwiderruflich.
                 Nur nutzen, wenn ein Event endet und das Tool für den neuen Turm wieder leer sein soll.
             </p>
             <button onclick="startArchiveReset()" style="width: 100%; background-color: var(--admin-color); color: white;">Gesamtes Archiv löschen</button>
@@ -875,7 +875,7 @@
             if (!isAdmin) return;
 
             const confirmed = confirm(
-                "ACHTUNG: Dies löscht wirklich ALLE Team-Screenshots und Boss-Daten aus dem gesamten Archiv (alle 500 Ebenen) unwiderruflich!\n\n" +
+                "ACHTUNG: Dies löscht wirklich ALLE Team-Screenshots, Boss-Daten und importierten Team-Vorschläge aus dem gesamten Archiv (alle 500 Ebenen) unwiderruflich!\n\n" +
                 "Nur bestätigen, wenn das Event vorbei ist und du für den neuen Turm neu starten möchtest.\n\n" +
                 "Fortfahren?"
             );
@@ -923,6 +923,10 @@
                 // 3. Alle Boss-Einträge löschen
                 const { error: bossError } = await _supabase.from('boss_data').delete().gt('level', 0);
                 if (bossError) throw bossError;
+
+                // 4. Alle importierten Team-Vorschläge aus dem Sheet-Import löschen
+                const { error: importedTeamsError } = await _supabase.from('imported_teams').delete().gt('level', 0);
+                if (importedTeamsError) throw importedTeamsError;
 
                 status.textContent = "Archiv erfolgreich zurückgesetzt! Seite wird neu geladen...";
                 status.style.color = "#49e37d";
