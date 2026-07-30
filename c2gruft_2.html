@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 2 - Gruft Archiv</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #120e1a;
+            --card-bg: #1d1729;
+            --accent-color: #f1b32c;
+            --admin-color: #ff4a4a;
+            --text-color: #ffffff;
+            --text-muted: #7e748f;
+            --border-color: #382d4d;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background-color: var(--card-bg); padding: 30px;
+            border-radius: 12px; border: 1px solid var(--border-color);
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%; max-width: 350px; box-sizing: border-box;
+        }
+
+        .app-container { display: none; width: 100%; max-width: 1200px; flex-direction: column; }
+        header { text-align: center; margin-bottom: 30px; position: relative; }
+        h1 { color: var(--accent-color); margin-bottom: 5px; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-sizing: border-box; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { margin-bottom: 6px; font-weight: bold; font-size: 14px;}
+        input, select, textarea { padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: #0b0810; color: white; font-size: 16px; font-family: inherit; }
+        textarea { resize: vertical; min-height: 60px; }
+        select option:disabled { color: #4a3f5a; background-color: #100c16; }
+        button { background-color: var(--accent-color); color: #000; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #ffc847; }
+        .status-msg { margin-top: 10px; font-size: 14px; font-style: italic; }
+        
+/* Flexbox-Grid für Desktop-Ansicht */
+        .dashboard-grid {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            align-items: flex-start; /* KORREKTUR: Verhindert, dass sich das eingeklappte Panel unschön in die Länge zieht */
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .dashboard-grid .card, 
+        .dashboard-grid details.card {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        /* Styling für das aufklappbare Panel */
+        details.card summary {
+            list-style: none; /* Entfernt den Standard-Pfeil im Firefox/Chrome */
+            cursor: pointer;
+            outline: none;
+        }
+
+        details.card summary::-webkit-details-marker {
+            display: none; /* Entfernt den Standard-Pfeil im Safari */
+        }
+
+        details.card summary h3 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0;
+        }
+
+        /* Ein kleiner Indikator-Pfeil, der sich beim Öffnen dreht */
+        details.card summary h3::after {
+            content: "▶";
+            font-size: 14px;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        details[open].card summary h3::after {
+            transform: rotate(90deg);
+            color: var(--accent-color);
+        }
+
+        /* Abstand für den Inhalt, wenn das Panel geöffnet ist */
+        details[open] .panel-content {
+            margin-top: 15px;
+        }
+        
+        .team-image-wrapper { position: relative; margin-bottom: 25px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background-color: #0b0810; }
+        .team-image-wrapper img { width: 100%; display: block; }
+        .team-note-box { background-color: #161120; padding: 12px; border-top: 1px solid var(--border-color); font-size: 14px; color: #e2daf0; }
+        
+        /* Modifikatoren Grid */
+        .boss-info-display { position: relative; background: #161120; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 15px; }
+        .mod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+        .mod-item { background-color: #251d34; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); cursor: help; font-size: 14px; position: relative; }
+        .mod-item:hover { border-color: var(--accent-color); }
+
+        /* Erweitertes Mobil- & Desktop-Tooltip-Verhalten */
+        .mod-item .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #0b0810;
+            color: #fff;
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--accent-color);
+            z-index: 99;
+            width: 220px;
+            transition: opacity 0.2s;
+            font-weight: normal;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .mod-item:hover .tooltip,
+        .mod-item.active .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .delete-btn { display: none; position: absolute; top: 10px; right: 10px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; z-index: 10; border: none; cursor: pointer; }
+        .delete-boss-btn { display: none; position: absolute; top: 15px; right: 15px; background-color: var(--admin-color); color: white; padding: 6px 12px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer; }
+        
+        .logout-btn { position: absolute; top: 0; right: 0; background: #382d4d; color: white; padding: 6px 12px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; }
+        .logout-btn:hover { background: var(--admin-color); }
+        .admin-toggle-link { display: inline-block; margin-top: 15px; font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
+        .admin-toggle-link:hover { color: var(--accent-color); }
+
+        /* Mobile Ansicht: Untereinander bei Bildschirmen unter 768px */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                flex-direction: column;
+            }
+            .dashboard-grid .card {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN MASKE -->
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color: var(--accent-color); margin-top:0;">Gilden-Zugang</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Chapter 2 - Gruft Archiv</p>
+            
+            <div id="memberForm">
+                <div class="form-group">
+                    <label for="memberPasswordInput" style="text-align: left;">Gilden-Passwort:</label>
+                    <input type="password" id="memberPasswordInput" placeholder="••••••••" onkeypress="if(event.key === 'Enter') loginAsMember()">
+                </div>
+                <button onclick="loginAsMember()" style="width: 100%; margin-top: 10px;">Einloggen</button>
+                <div class="admin-toggle-link" onclick="toggleAdminLogin(true)">Als Admin anmelden</div>
+            </div>
+
+            <div id="adminForm" style="display: none;">
+                <div class="form-group">
+                    <label for="adminEmailInput" style="text-align: left;">Admin E-Mail:</label>
+                    <input type="email" id="adminEmailInput" placeholder="deine-mail@gmail.com">
+                </div>
+                <div class="form-group">
+                    <label for="adminPasswordInput" style="text-align: left;">Admin Passwort:</label>
+                    <input type="password" id="adminPasswordInput" placeholder="••••••••" onkeypress="if(event.key === 'Enter') loginAsAdmin()">
+                </div>
+                <button onclick="loginAsAdmin()" style="width: 100%; margin-top: 10px; background-color: var(--admin-color); color: white;">Admin Login</button>
+                <div class="admin-toggle-link" onclick="toggleAdminLogin(false)">Zurück zum Mitglieder-Login</div>
+            </div>
+
+            <p id="loginError" style="color: var(--admin-color); font-size: 14px; margin-top: 14px; display: none;"></p>
+        </div>
+    </div>
+
+    <!-- APP CONTAINER -->
+    <div class="app-container" id="appContainer">
+        <header>
+            <button class="logout-btn" onclick="logout()">Ausloggen</button>
+            <h1>Chapter 2 - Gruft Archiv</h1>
+            <p style="color: var(--text-muted)">Erfolgreiche Setups & Modifikatoren (Stufen 1 - 500)</p>
+            <span id="roleBadge" style="font-size: 12px; background: #382d4d; padding: 4px 10px; border-radius: 20px;">Nutzer-Modus</span>
+        </header>
+
+<!-- NEUER WRAPPER FÜR KARTEN NEBENANEANDER -->
+        <div class="dashboard-grid">
+            <!-- BOSS-MODIFIKATOREN ALS AUFKLAPPBARES PANEL (Standardmäßig zu) -->
+            <details class="card upload-section">
+                <summary>
+                    <h3 style="color: var(--accent-color);">Boss automatisch erfassen</h3>
+                </summary>
+                
+                <div class="panel-content">
+                    <div class="form-group">
+                        <label for="uploadBossLevelSelect">Gruft Tiefe (1-500):</label>
+                        <select id="uploadBossLevelSelect"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="bossImageFile">Boss-Screenshot hochladen:</label>
+                        <input type="file" id="bossImageFile" accept="image/*">
+                    </div>
+                    <button onclick="scanAndSaveBoss()" style="width: 100%; margin-top: 5px;">Bild scannen & speichern</button>
+                    <div id="bossScanStatus" class="status-msg"></div>
+                </div>
+            </details>
+
+            <!-- UPLOAD: TEAM SCREENSHOT -->
+            <div class="card upload-section">
+                <h3 style="margin-top:0; color: var(--accent-color);">Erfolgreiches Team beitragen</h3>
+                <div class="form-group">
+                    <label for="uploadLevelSelect">Gruft Tiefe (1-500):</label>
+                    <select id="uploadLevelSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label for="imageFile">Screenshot (Datei oder STRG+V):</label>
+                    <input type="file" id="imageFile" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="uploadNote">Notiz / Infos zum Team (Optional):</label>
+                    <textarea id="uploadNote" placeholder="Z.B. Teambuilding, Items..."></textarea>
+                </div>
+                <button onclick="uploadToSupabase()" style="width: 100%;">Team hinzufügen</button>
+                <div id="uploadStatus" class="status-msg"></div>
+            </div>
+        </div>
+
+        <!-- ANSEHEN / SUCHE -->
+        <div class="card search-section">
+            <h3 style="margin-top:0; color: var(--accent-color);">Archiv durchsuchen</h3>
+            <div class="form-group">
+                <label for="viewLevelSelect">Ebene auswählen:</label>
+                <select id="viewLevelSelect" onchange="loadLevelData()">
+                    <!-- Dynamisch -->
+                </select>
+            </div>
+            
+            <!-- Hier landen die Boss-Modifikatoren -->
+            <div id="bossDataView"></div>
+
+            <!-- Hier landet das Team laut Sheet-Import -->
+            <div id="importedTeamView"></div>
+            
+            <!-- Hier landen die Teambilder -->
+            <div id="imageGallery" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- ADMIN: BOSS-DATEN AUS EXTERNEM SHEET IMPORTIEREN -->
+        <div class="card" id="adminSheetImport" style="display: none;">
+            <h3 style="margin-top:0; color: var(--accent-color);">🔄 Boss-Daten aus externem Sheet importieren (nur Admin)</h3>
+            <p style="color: var(--text-muted); font-size: 14px;">
+                Importiert Ebene, Element und Modifikatoren aus einem öffentlichen Google-Sheet (z.B. von einem anderen Spieler geteilt).
+                Bereits vorhandene Ebenen werden standardmäßig übersprungen.
+            </p>
+            <div class="form-group">
+                <label for="sheetUrlInput">Google-Sheet-Link (aktueller Monat):</label>
+                <input type="text" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=0">
+            </div>
+            <button onclick="saveSheetUrl()" style="width: 100%; background-color: #382d4d; color: white; margin-bottom: 10px;">Link für nächstes Mal speichern</button>
+            <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                <input type="checkbox" id="overwriteExistingCheckbox" style="width: auto;">
+                <label for="overwriteExistingCheckbox" style="margin: 0;">Bereits vorhandene Ebenen überschreiben</label>
+            </div>
+            <button onclick="previewSheetImport()" style="width: 100%;">Vorschau laden</button>
+            <div id="sheetImportStatus" class="status-msg"></div>
+            <div id="sheetImportPreview" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- ADMIN: ARCHIV ZURÜCKSETZEN -->
+        <div class="card" id="adminDangerZone" style="display: none; border-color: var(--admin-color);">
+            <h3 style="margin-top:0; color: var(--admin-color);">⚠ Archiv zurücksetzen (nur Admin)</h3>
+            <p style="color: var(--text-muted); font-size: 14px;">
+                Löscht ALLE Team-Screenshots und Boss-Daten aus dem gesamten Archiv (alle 500 Ebenen) unwiderruflich.
+                Nur nutzen, wenn ein Event endet und das Tool für den neuen Turm wieder leer sein soll.
+            </p>
+            <button onclick="startArchiveReset()" style="width: 100%; background-color: var(--admin-color); color: white;">Gesamtes Archiv löschen</button>
+            <div id="archiveResetStatus" class="status-msg"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://lmqpjhxoihjiepqhfeek.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtcXBqaHhvaWhqaWVwcWhmZWVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1ODUwMzksImV4cCI6MjA5ODE2MTAzOX0.YvZp6rXlqDp59YOqtA2fQ6aaTLpR0Fz-mmqZ6OswU2Y';
+
+        const MEMBER_EMAIL = 'jonasroth+mitgliedc2@gmail.com';
+        const ADMIN_EMAIL = 'jonasroth+adminc2@gmail.com';
+
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let isAdmin = false;
+
+        window.onload = async () => {
+            buildDropdowns();
+            setupPasteFeature();
+            setupGlobalTouchHandler();
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (session) { handleUserSession(session.user); }
+        };
+
+        function buildDropdowns() {
+            const upTeams = document.getElementById('uploadLevelSelect');
+            const upBoss = document.getElementById('uploadBossLevelSelect');
+            upTeams.innerHTML = ''; upBoss.innerHTML = '';
+            for (let i = 1; i <= 500; i++) {
+                const opt1 = document.createElement('option'); opt1.value = i; opt1.textContent = `Ebene ${i}`;
+                const opt2 = document.createElement('option'); opt2.value = i; opt2.textContent = `Ebene ${i}`;
+                upTeams.appendChild(opt1); upBoss.appendChild(opt2);
+            }
+        }
+
+        function setupPasteFeature() {
+            window.addEventListener('paste', (e) => {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        const blob = items[i].getAsFile();
+                        const fileInput = document.getElementById('imageFile');
+                        const file = new File([blob], "pasted-image.png", { type: blob.type });
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        fileInput.files = dataTransfer.files;
+                        document.getElementById('uploadStatus').textContent = "Bild aus Zwischenablage für das Team eingefügt!";
+                        document.getElementById('uploadStatus').style.color = "#49e37d";
+                    }
+                }
+            });
+        }
+
+        function toggleAdminLogin(showAdmin) {
+            document.getElementById('loginError').style.display = "none";
+            document.getElementById('memberForm').style.display = showAdmin ? "none" : "block";
+            document.getElementById('adminForm').style.display = showAdmin ? "block" : "none";
+        }
+
+        async function loginAsMember() {
+            const password = document.getElementById('memberPasswordInput').value;
+            if (!password) { alert("Bitte Passwort eingeben."); return; }
+            const { data, error } = await _supabase.auth.signInWithPassword({ email: MEMBER_EMAIL, password: password });
+            if (error) { document.getElementById('loginError').textContent = "Falsches Gilden-Passwort!"; document.getElementById('loginError').style.display = "block"; return; }
+            handleUserSession(data.user);
+        }
+
+        async function loginAsAdmin() {
+            const email = document.getElementById('adminEmailInput').value;
+            const password = document.getElementById('adminPasswordInput').value;
+            if (!email || !password) { alert("Bitte Daten eingeben."); return; }
+            const { data, error } = await _supabase.auth.signInWithPassword({ email: email, password: password });
+            if (error) { document.getElementById('loginError').textContent = "Login fehlgeschlagen: " + error.message; document.getElementById('loginError').style.display = "block"; return; }
+            handleUserSession(data.user);
+        }
+
+        function handleUserSession(user) {
+            isAdmin = (user.email === ADMIN_EMAIL);
+            document.getElementById('roleBadge').textContent = isAdmin ? "🔒 Admin-Modus" : "Nutzer-Modus";
+            document.getElementById('roleBadge').style.backgroundColor = isAdmin ? "var(--admin-color)" : "#382d4d";
+            document.getElementById('adminDangerZone').style.display = isAdmin ? "block" : "none";
+            document.getElementById('adminSheetImport').style.display = isAdmin ? "block" : "none";
+            if (isAdmin) { loadSavedSheetUrl(); }
+            document.getElementById('loginOverlay').style.display = "none";
+            document.getElementById('appContainer').style.display = "flex";
+            loadInitialDropdownData();
+        }
+
+        async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
+
+        async function loadInitialDropdownData() {
+            const { data: teams } = await _supabase.from('setups').select('level');
+            const { data: bosses } = await _supabase.from('boss_data').select('level');
+            const { data: importedTeams } = await _supabase.from('imported_teams').select('level');
+
+            const activeLevels = new Set();
+            if(teams) teams.forEach(t => activeLevels.add(t.level));
+            if(bosses) bosses.forEach(b => activeLevels.add(b.level));
+            if(importedTeams) importedTeams.forEach(t => activeLevels.add(t.level));
+
+            const select = document.getElementById('viewLevelSelect');
+            const currentVal = select.value;
+            select.innerHTML = '';
+
+            for (let i = 1; i <= 500; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = activeLevels.has(i) ? `Ebene ${i} (Daten vorhanden)` : `Ebene ${i} (Kein Eintrag)`;
+                if (!activeLevels.has(i)) opt.disabled = true;
+                select.appendChild(opt);
+            }
+            if (currentVal && activeLevels.has(parseInt(currentVal))) select.value = currentVal;
+            else if (activeLevels.size > 0) select.value = Array.from(activeLevels).sort((a,b)=>a-b)[0];
+
+            loadLevelData();
+        }
+
+        async function loadLevelData() {
+            const level = document.getElementById('viewLevelSelect').value;
+            if (!level) return;
+
+            const bossView = document.getElementById('bossDataView');
+            bossView.innerHTML = '';
+
+            const { data: boss } = await _supabase.from('boss_data').select('*').eq('level', level).maybeSingle();
+
+            if (boss) {
+                const bossCard = document.createElement('div');
+                bossCard.className = 'boss-info-display';
+                
+                let deleteButtonHtml = '';
+                if (isAdmin) {
+                    deleteButtonHtml = `<button class="delete-boss-btn" style="display: block;" onclick="deleteBossEintrag(${boss.level})">Boss-Eintrag löschen</button>`;
+                }
+
+                bossCard.innerHTML = `
+                    <h3>Boss-Details (Tiefe ${level})</h3>
+                    ${deleteButtonHtml}
+                    <p><strong>Affinität:</strong> ${boss.element}</p>
+                    <strong>Modifikatoren (Hover für Info):</strong>
+                `;
+                
+                const grid = document.createElement('div');
+                grid.className = 'mod-grid';
+
+                const { data: library } = await _supabase.from('modifiers_library').select('*').in('name_de', boss.mods);
+                
+                if(library) {
+                    library.forEach(mod => {
+                        const item = document.createElement('div');
+                        item.className = 'mod-item';
+                        
+                        // Hier wird das HTML für das Span-Element als Tooltip generiert
+                        const englName = mod.name_en ? ` (${mod.name_en})` : '';
+                        const beschreibung = mod.description || "Keine Beschreibung hinterlegt.";
+                        
+                        item.innerHTML = `
+                            ✨ <strong>${mod.name_de}</strong>${englName}
+                            <span class="tooltip">${beschreibung}</span>
+                        `;
+                        
+                        // Mobile-Tippen direkt an das Element binden, da der Inhalt dynamisch geladen wird
+                        item.addEventListener('click', (e) => {
+                            if (window.innerWidth <= 768) {
+                                e.stopPropagation();
+                                document.querySelectorAll('.mod-item').forEach(el => {
+                                    if (el !== item) el.classList.remove('active');
+                                });
+                                item.classList.toggle('active');
+                            }
+                        });
+
+                        grid.appendChild(item);
+                    });
+                }
+                bossCard.appendChild(grid);
+                bossView.appendChild(bossCard);
+            }
+
+            const importedTeamView = document.getElementById('importedTeamView');
+            importedTeamView.innerHTML = '';
+
+            const { data: importedTeam } = await _supabase.from('imported_teams').select('*').eq('level', level).maybeSingle();
+
+            if (importedTeam) {
+                const slots = [importedTeam.slot1, importedTeam.slot2, importedTeam.slot3, importedTeam.slot4]
+                    .filter(s => s && s.trim().length > 0);
+
+                const teamCard = document.createElement('div');
+                teamCard.className = 'boss-info-display';
+                teamCard.innerHTML = `
+                    <h3>Team-Vorschlag aus Sheet-Import (Ebene ${level})</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px;">
+                        <tr>
+                            ${slots.map((_, i) => `<th style="text-align: left; padding: 6px; border-bottom: 1px solid var(--border-color);">Slot ${i + 1}</th>`).join('')}
+                            ${importedTeam.booster ? `<th style="text-align: left; padding: 6px; border-bottom: 1px solid var(--border-color);">Booster</th>` : ''}
+                            ${importedTeam.best_face ? `<th style="text-align: left; padding: 6px; border-bottom: 1px solid var(--border-color);">Best Face</th>` : ''}
+                        </tr>
+                        <tr>
+                            ${slots.map(s => `<td style="padding: 6px;">${s}</td>`).join('')}
+                            ${importedTeam.booster ? `<td style="padding: 6px;">${importedTeam.booster}</td>` : ''}
+                            ${importedTeam.best_face ? `<td style="padding: 6px;">${importedTeam.best_face}</td>` : ''}
+                        </tr>
+                    </table>
+                    <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 0; margin-top: 8px;">Aus externem Sheet importiert, kein eigener Screenshot.</p>
+                `;
+                importedTeamView.appendChild(teamCard);
+            }
+
+            const gallery = document.getElementById('imageGallery');
+            gallery.innerHTML = '';
+            const { data: teams } = await _supabase.from('setups').select('*').eq('level', level);
+
+            if (teams && teams.length > 0) {
+                teams.forEach(team => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'team-image-wrapper';
+                    const img = document.createElement('img'); 
+                    img.src = team.image_url; 
+                    wrapper.appendChild(img);
+
+                    if (team.note) {
+                        const nBox = document.createElement('div'); 
+                        nBox.className = 'team-note-box'; 
+                        nBox.textContent = team.note; 
+                        wrapper.appendChild(nBox);
+                    }
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn'; 
+                    delBtn.textContent = 'Bild Löschen';
+                    if (isAdmin) delBtn.style.display = "block";
+                    delBtn.onclick = () => deleteTeam(team.id, team.image_url);
+                    
+                    wrapper.appendChild(delBtn); 
+                    gallery.appendChild(wrapper);
+                });
+            }
+        }
+
+        async function scanAndSaveBoss() {
+            const levelSelect = document.getElementById('uploadBossLevelSelect');
+            const fileInput = document.getElementById('bossImageFile');
+            const status = document.getElementById('bossScanStatus');
+
+            const level = parseInt(levelSelect.value, 10);
+            if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
+
+            status.textContent = "KI analysiert das Bild (Schild & Text)... Bitte warten...";
+            status.style.color = "var(--accent-color)";
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onloadend = async function () {
+                const base64String = reader.result;
+
+                try {
+                    const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-boss`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        },
+                        body: JSON.stringify({ imageBase64: base64String })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const { error: dbError } = await _supabase
+                            .from('boss_data')
+                            .upsert({ level: level, element: result.element, mods: result.modifiers });
+
+                        if (dbError) throw dbError;
+
+                        status.textContent = `Boss erfolgreich erfasst!`;
+                        status.style.color = "#49e37d";
+                        fileInput.value = '';
+                        window.location.reload();
+                    } else {
+                        status.textContent = "Erkennungsfehler: " + result.error;
+                        status.style.color = "var(--admin-color)";
+                    }
+                } catch (err) {
+                    status.textContent = "Fehler bei der KI-Verarbeitung.";
+                    status.style.color = "var(--admin-color)";
+                    console.error(err);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadToSupabase() {
+            const levelSelect = document.getElementById('uploadLevelSelect');
+            const fileInput = document.getElementById('imageFile');
+            const noteInput = document.getElementById('uploadNote');
+            const status = document.getElementById('uploadStatus');
+
+            const level = parseInt(levelSelect.value, 10);
+            if (!fileInput.files[0]) { alert("Datei wählen."); return; }
+
+            status.textContent = "Team wird hochgeladen...";
+            status.style.color = "var(--accent-color)";
+
+            const file = fileInput.files[0];
+            const fileExtension = file.name.split('.').pop();
+            const anonymousFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`;
+
+            const { error: storageError } = await _supabase.storage.from('gruft-bilder').upload(anonymousFileName, file);
+            if (storageError) { status.textContent = "Fehler: " + storageError.message; status.style.color = "var(--admin-color)"; return; }
+
+            const { data } = _supabase.storage.from('gruft-bilder').getPublicUrl(anonymousFileName);
+            const publicUrl = data.publicUrl;
+            
+            const { error: dbError } = await _supabase.from('setups').insert([{ level: level, image_url: publicUrl, note: noteInput.value.trim() || null }]);
+            if (dbError) { status.textContent = "Fehler: " + dbError.message; status.style.color = "var(--admin-color)"; return; }
+
+            status.textContent = "Team erfolgreich gespeichert!";
+            status.style.color = "#49e37d";
+            fileInput.value = ''; noteInput.value = '';
+            
+            window.location.reload();
+        }
+
+        async function deleteBossEintrag(level) {
+            if (!confirm(`Möchtest du den Boss auf Ebene ${level} wirklich aus dem Archiv löschen?`)) return;
+
+            try {
+                const { error } = await _supabase
+                    .from('boss_data')
+                    .delete()
+                    .eq('level', level);
+
+                if (error) throw error;
+                window.location.reload(); 
+
+            } catch (err) {
+                console.error("Fehler beim Löschen:", err);
+                alert("Eintrag konnte nicht gelöscht werden.");
+            }
+        }
+
+        async function deleteTeam(id, url) {
+            if (!confirm("Dieses Setup löschen?")) return;
+            const fileName = url.split('/').pop();
+            await _supabase.storage.from('gruft-bilder').remove([fileName]);
+            await _supabase.from('setups').delete().eq('id', id);
+            await loadInitialDropdownData();
+        }
+
+        const SHEET_URL_SETTING_KEY = 'boss_sheet_url';
+
+        async function loadSavedSheetUrl() {
+            try {
+                const { data } = await _supabase.from('app_settings').select('value').eq('key', SHEET_URL_SETTING_KEY).maybeSingle();
+                if (data && data.value) {
+                    document.getElementById('sheetUrlInput').value = data.value;
+                }
+            } catch (err) {
+                console.error("Konnte gespeicherten Sheet-Link nicht laden:", err);
+            }
+        }
+
+        async function saveSheetUrl() {
+            const url = document.getElementById('sheetUrlInput').value.trim();
+            const status = document.getElementById('sheetImportStatus');
+            if (!url) { alert("Bitte zuerst einen Link eingeben."); return; }
+
+            try {
+                const { error } = await _supabase.from('app_settings').upsert({ key: SHEET_URL_SETTING_KEY, value: url });
+                if (error) throw error;
+                status.textContent = "Link gespeichert – wird beim nächsten Öffnen automatisch vorausgefüllt.";
+                status.style.color = "#49e37d";
+            } catch (err) {
+                console.error(err);
+                status.textContent = "Fehler beim Speichern: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
+        }
+
+        // Barriere-Bezeichnung im fremden Sheet -> Element-Feld in boss_data
+        const ELEMENT_MAP = {
+            fire: "Feuer", feuer: "Feuer",
+            earth: "Erde", erde: "Erde",
+            water: "Wasser", wasser: "Wasser",
+            light: "Licht", licht: "Licht",
+            dark: "Schatten", shadow: "Schatten", schatten: "Schatten",
+            air: "Luft", luft: "Luft",
+        };
+
+        let pendingImportRows = null;
+        let pendingImportTeamRows = null;
+
+        function parseCsvLine(line) {
+            const result = [];
+            let cur = "";
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') { inQuotes = !inQuotes; }
+                else if (char === "," && !inQuotes) { result.push(cur.trim()); cur = ""; }
+                else { cur += char; }
+            }
+            result.push(cur.trim());
+            return result;
+        }
+
+        async function previewSheetImport() {
+            const sheetUrl = document.getElementById('sheetUrlInput').value.trim();
+            const status = document.getElementById('sheetImportStatus');
+            const preview = document.getElementById('sheetImportPreview');
+            preview.innerHTML = '';
+            pendingImportRows = null;
+
+            if (!sheetUrl) { alert("Bitte Sheet-Link eingeben."); return; }
+
+            status.textContent = "Lade Sheet...";
+            status.style.color = "var(--accent-color)";
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/fetch-sheet-csv`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
+                    body: JSON.stringify({ sheetUrl })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || "Unbekannter Fehler beim Laden.");
+
+                const lines = result.csv.split(/\r?\n/).filter(l => l.trim().length > 0);
+                const dataLines = lines.slice(2); // Titel- und Kopfzeile überspringen
+
+                const { data: library } = await _supabase.from('modifiers_library').select('name_de, name_en');
+                const { data: existingRows } = await _supabase.from('boss_data').select('level');
+                const existingLevels = new Set((existingRows || []).map(r => r.level));
+                const { data: existingTeamRows } = await _supabase.from('imported_teams').select('level');
+                const existingTeamLevels = new Set((existingTeamRows || []).map(r => r.level));
+
+                function translateMod(mod) {
+                    const clean = mod.toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+                    const match = (library || []).find(m => {
+                        const de = (m.name_de || "").toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+                        const en = (m.name_en || "").toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+                        return de === clean || en === clean;
+                    });
+                    return match ? match.name_de : mod;
+                }
+
+                const rows = [];
+                const teamRows = [];
+                const unknownElements = [];
+
+                for (const line of dataLines) {
+                    const cols = parseCsvLine(line);
+                    const level = parseInt(cols[0], 10);
+                    if (!level || isNaN(level)) continue; // Keine gültige Ebene mehr -> Ende der Tabelle erreicht
+
+                    const barrierRaw = (cols[1] || "").trim();
+                    const element = ELEMENT_MAP[barrierRaw.toLowerCase()];
+                    if (!element) { unknownElements.push({ level, raw: barrierRaw }); }
+                    else {
+                        const mods = [cols[2], cols[3], cols[4], cols[5], cols[6]]
+                            .filter(m => m && m.trim().length > 0)
+                            .map(m => translateMod(m.trim()));
+
+                        rows.push({ level, element, mods, alreadyExists: existingLevels.has(level) });
+                    }
+
+                    // Spalten I-O: Team, das laut Sheet diese Ebene erfolgreich geschafft hat
+                    const slot1 = (cols[9] || "").trim();
+                    const slot2 = (cols[10] || "").trim();
+                    const slot3 = (cols[11] || "").trim();
+                    const slot4 = (cols[12] || "").trim();
+                    const booster = (cols[13] || "").trim();
+                    const bestFace = (cols[14] || "").trim();
+
+                    if (slot1 || slot2 || slot3 || slot4) {
+                        teamRows.push({
+                            level, slot1, slot2, slot3, slot4, booster, best_face: bestFace,
+                            alreadyExists: existingTeamLevels.has(level)
+                        });
+                    }
+                }
+
+                pendingImportRows = rows;
+                pendingImportTeamRows = teamRows;
+
+                const overwrite = document.getElementById('overwriteExistingCheckbox').checked;
+                const toImport = rows.filter(r => !r.alreadyExists || overwrite);
+                const toSkip = rows.filter(r => r.alreadyExists && !overwrite);
+                const teamsToImport = teamRows.filter(r => !r.alreadyExists || overwrite);
+                const teamsToSkip = teamRows.filter(r => r.alreadyExists && !overwrite);
+
+                status.textContent = `Vorschau bereit: ${rows.length} Boss-Ebenen und ${teamRows.length} Team-Vorschläge im Sheet gefunden.`;
+                status.style.color = "#49e37d";
+
+                preview.innerHTML = `
+                    <p>
+                        <strong>Boss-Daten:</strong> ${toImport.length} werden importiert${overwrite ? '/überschrieben' : ''}, ${toSkip.length} übersprungen (bereits vorhanden).<br>
+                        <strong>Team-Vorschläge:</strong> ${teamsToImport.length} werden importiert${overwrite ? '/überschrieben' : ''}, ${teamsToSkip.length} übersprungen (bereits vorhanden).${
+                            unknownElements.length > 0
+                                ? `<br><strong style="color: var(--admin-color);">${unknownElements.length}</strong> Ebenen mit unbekanntem Element übersprungen (z.B. "${unknownElements[0].raw}").`
+                                : ''
+                        }
+                    </p>
+                    <button onclick="runSheetImport()" style="width: 100%;">Import bestätigen (${toImport.length} Bosse, ${teamsToImport.length} Teams)</button>
+                `;
+
+            } catch (err) {
+                console.error(err);
+                status.textContent = "Fehler: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
+        }
+
+        async function runSheetImport() {
+            if (!pendingImportRows && !pendingImportTeamRows) return;
+            const status = document.getElementById('sheetImportStatus');
+            const overwrite = document.getElementById('overwriteExistingCheckbox').checked;
+
+            const toImport = (pendingImportRows || []).filter(r => !r.alreadyExists || overwrite);
+            const teamsToImport = (pendingImportTeamRows || []).filter(r => !r.alreadyExists || overwrite);
+
+            if (toImport.length === 0 && teamsToImport.length === 0) { alert("Nichts zu importieren."); return; }
+
+            status.textContent = `Importiere ${toImport.length} Boss-Ebenen und ${teamsToImport.length} Team-Vorschläge...`;
+            status.style.color = "var(--accent-color)";
+
+            try {
+                if (toImport.length > 0) {
+                    const bossPayload = toImport.map(r => ({ level: r.level, element: r.element, mods: r.mods }));
+                    const { error: bossError } = await _supabase.from('boss_data').upsert(bossPayload);
+                    if (bossError) throw bossError;
+                }
+
+                if (teamsToImport.length > 0) {
+                    const teamPayload = teamsToImport.map(r => ({
+                        level: r.level, slot1: r.slot1, slot2: r.slot2, slot3: r.slot3, slot4: r.slot4,
+                        booster: r.booster, best_face: r.best_face
+                    }));
+                    const { error: teamError } = await _supabase.from('imported_teams').upsert(teamPayload);
+                    if (teamError) throw teamError;
+                }
+
+                status.textContent = `${toImport.length} Boss-Ebenen und ${teamsToImport.length} Team-Vorschläge erfolgreich importiert!`;
+                status.style.color = "#49e37d";
+                document.getElementById('sheetImportPreview').innerHTML = '';
+                pendingImportRows = null;
+                pendingImportTeamRows = null;
+                await loadInitialDropdownData();
+
+            } catch (err) {
+                console.error(err);
+                status.textContent = "Fehler beim Import: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
+        }
+
+        function generateSecurityCode(length = 6) {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne verwechselbare Zeichen (O/0, I/1)
+            let code = "";
+            for (let i = 0; i < length; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        async function startArchiveReset() {
+            if (!isAdmin) return;
+
+            const confirmed = confirm(
+                "ACHTUNG: Dies löscht wirklich ALLE Team-Screenshots und Boss-Daten aus dem gesamten Archiv (alle 500 Ebenen) unwiderruflich!\n\n" +
+                "Nur bestätigen, wenn das Event vorbei ist und du für den neuen Turm neu starten möchtest.\n\n" +
+                "Fortfahren?"
+            );
+            if (!confirmed) return;
+
+            const securityCode = generateSecurityCode();
+            const userInput = prompt(
+                "Letzte Sicherheitsabfrage!\n\n" +
+                "Um das Löschen des gesamten Archivs zu bestätigen, gib exakt diesen Code ein:\n\n" +
+                securityCode
+            );
+
+            if (userInput === null) return; // Abgebrochen
+            if (userInput.trim().toUpperCase() !== securityCode) {
+                alert("Falscher Code eingegeben. Löschvorgang abgebrochen.");
+                return;
+            }
+
+            await performArchiveReset();
+        }
+
+        async function performArchiveReset() {
+            const status = document.getElementById('archiveResetStatus');
+            status.textContent = "Archiv wird zurückgesetzt...";
+            status.style.color = "var(--accent-color)";
+
+            try {
+                // 1. Alle Bild-Dateien aus dem Storage-Bucket sammeln und löschen
+                const { data: teams, error: fetchError } = await _supabase.from('setups').select('image_url');
+                if (fetchError) throw fetchError;
+
+                if (teams && teams.length > 0) {
+                    const fileNames = teams.map(t => t.image_url.split('/').pop());
+                    for (let i = 0; i < fileNames.length; i += 100) {
+                        const batch = fileNames.slice(i, i + 100);
+                        const { error: removeError } = await _supabase.storage.from('gruft-bilder').remove(batch);
+                        if (removeError) console.error("Fehler beim Löschen einiger Bilder:", removeError);
+                    }
+                }
+
+                // 2. Alle Team-Einträge löschen (level ist immer > 0, trifft also alle Zeilen)
+                const { error: setupsError } = await _supabase.from('setups').delete().gt('level', 0);
+                if (setupsError) throw setupsError;
+
+                // 3. Alle Boss-Einträge löschen
+                const { error: bossError } = await _supabase.from('boss_data').delete().gt('level', 0);
+                if (bossError) throw bossError;
+
+                status.textContent = "Archiv erfolgreich zurückgesetzt! Seite wird neu geladen...";
+                status.style.color = "#49e37d";
+                setTimeout(() => window.location.reload(), 1500);
+
+            } catch (err) {
+                console.error("Fehler beim Zurücksetzen des Archivs:", err);
+                status.textContent = "Fehler beim Zurücksetzen: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
+        }
+
+        function setupGlobalTouchHandler() {
+            // Schließt offene Tooltips auf dem Mobilgerät, wenn man daneben klickt
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.mod-item').forEach(el => {
+                    el.classList.remove('active');
+                });
+            });
+        }
+    </script>
+</body>
+</html>
