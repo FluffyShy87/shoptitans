@@ -256,9 +256,33 @@
             
             <!-- Hier landen die Boss-Modifikatoren -->
             <div id="bossDataView"></div>
+
+            <!-- Hier landet das Team laut Sheet-Import -->
+            <div id="importedTeamView"></div>
             
             <!-- Hier landen die Teambilder -->
             <div id="imageGallery" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- ADMIN: BOSS-DATEN AUS EXTERNEM SHEET IMPORTIEREN -->
+        <div class="card" id="adminSheetImport" style="display: none;">
+            <h3 style="margin-top:0; color: var(--accent-color);">🔄 Boss-Daten aus externem Sheet importieren (nur Admin)</h3>
+            <p style="color: var(--text-muted); font-size: 14px;">
+                Importiert Ebene, Element und Modifikatoren aus einem öffentlichen Google-Sheet (z.B. von einem anderen Spieler geteilt).
+                Bereits vorhandene Ebenen werden standardmäßig übersprungen.
+            </p>
+            <div class="form-group">
+                <label for="sheetUrlInput">Google-Sheet-Link (aktueller Monat):</label>
+                <input type="text" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=0">
+            </div>
+            <button onclick="saveSheetUrl()" style="width: 100%; background-color: #382d4d; color: white; margin-bottom: 10px;">Link für nächstes Mal speichern</button>
+            <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                <input type="checkbox" id="overwriteExistingCheckbox" style="width: auto;">
+                <label for="overwriteExistingCheckbox" style="margin: 0;">Bereits vorhandene Ebenen überschreiben</label>
+            </div>
+            <button onclick="previewSheetImport()" style="width: 100%;">Vorschau laden</button>
+            <div id="sheetImportStatus" class="status-msg"></div>
+            <div id="sheetImportPreview" style="margin-top: 15px;"></div>
         </div>
 
         <!-- ADMIN: ARCHIV ZURÜCKSETZEN -->
@@ -348,6 +372,8 @@
             document.getElementById('roleBadge').textContent = isAdmin ? "🔒 Admin-Modus" : "Nutzer-Modus";
             document.getElementById('roleBadge').style.backgroundColor = isAdmin ? "var(--admin-color)" : "#382d4d";
             document.getElementById('adminDangerZone').style.display = isAdmin ? "block" : "none";
+            document.getElementById('adminSheetImport').style.display = isAdmin ? "block" : "none";
+            if (isAdmin) { loadSavedSheetUrl(); }
             document.getElementById('loginOverlay').style.display = "none";
             document.getElementById('appContainer').style.display = "flex";
             loadInitialDropdownData();
@@ -358,10 +384,12 @@
         async function loadInitialDropdownData() {
             const { data: teams } = await _supabase.from('setups').select('level');
             const { data: bosses } = await _supabase.from('boss_data').select('level');
+            const { data: importedTeams } = await _supabase.from('imported_teams').select('level');
 
             const activeLevels = new Set();
             if(teams) teams.forEach(t => activeLevels.add(t.level));
             if(bosses) bosses.forEach(b => activeLevels.add(b.level));
+            if(importedTeams) importedTeams.forEach(t => activeLevels.add(t.level));
 
             const select = document.getElementById('viewLevelSelect');
             const currentVal = select.value;
@@ -440,6 +468,36 @@
                 }
                 bossCard.appendChild(grid);
                 bossView.appendChild(bossCard);
+            }
+
+            const importedTeamView = document.getElementById('importedTeamView');
+            importedTeamView.innerHTML = '';
+
+            const { data: importedTeam } = await _supabase.from('imported_teams').select('*').eq('level', level).maybeSingle();
+
+            if (importedTeam) {
+                const slots = [importedTeam.slot1, importedTeam.slot2, importedTeam.slot3, importedTeam.slot4]
+                    .filter(s => s && s.trim().length > 0);
+
+                const teamCard = document.createElement('div');
+                teamCard.className = 'boss-info-display';
+                teamCard.innerHTML = `
+                    <h3>Team-Vorschlag aus Sheet-Import (Ebene ${level})</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px;">
+                        <tr>
+                            ${slots.map((_, i) => `<th style="text-align: left; padding: 6px; border-bottom: 1px solid var(--border-color);">Slot ${i + 1}</th>`).join('')}
+                            ${importedTeam.booster ? `<th style="text-align: left; padding: 6px; border-bottom: 1px solid var(--border-color);">Booster</th>` : ''}
+                            ${importedTeam.best_face ? `<th style="text-align: left; padding: 6px; border-bottom: 1px solid var(--border-color);">Best Face</th>` : ''}
+                        </tr>
+                        <tr>
+                            ${slots.map(s => `<td style="padding: 6px;">${s}</td>`).join('')}
+                            ${importedTeam.booster ? `<td style="padding: 6px;">${importedTeam.booster}</td>` : ''}
+                            ${importedTeam.best_face ? `<td style="padding: 6px;">${importedTeam.best_face}</td>` : ''}
+                        </tr>
+                    </table>
+                    <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 0; margin-top: 8px;">Aus externem Sheet importiert, kein eigener Screenshot.</p>
+                `;
+                importedTeamView.appendChild(teamCard);
             }
 
             const gallery = document.getElementById('imageGallery');
@@ -582,6 +640,216 @@
             await _supabase.storage.from('gruft-bilder').remove([fileName]);
             await _supabase.from('setups').delete().eq('id', id);
             await loadInitialDropdownData();
+        }
+
+        const SHEET_URL_SETTING_KEY = 'boss_sheet_url';
+
+        async function loadSavedSheetUrl() {
+            try {
+                const { data } = await _supabase.from('app_settings').select('value').eq('key', SHEET_URL_SETTING_KEY).maybeSingle();
+                if (data && data.value) {
+                    document.getElementById('sheetUrlInput').value = data.value;
+                }
+            } catch (err) {
+                console.error("Konnte gespeicherten Sheet-Link nicht laden:", err);
+            }
+        }
+
+        async function saveSheetUrl() {
+            const url = document.getElementById('sheetUrlInput').value.trim();
+            const status = document.getElementById('sheetImportStatus');
+            if (!url) { alert("Bitte zuerst einen Link eingeben."); return; }
+
+            try {
+                const { error } = await _supabase.from('app_settings').upsert({ key: SHEET_URL_SETTING_KEY, value: url });
+                if (error) throw error;
+                status.textContent = "Link gespeichert – wird beim nächsten Öffnen automatisch vorausgefüllt.";
+                status.style.color = "#49e37d";
+            } catch (err) {
+                console.error(err);
+                status.textContent = "Fehler beim Speichern: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
+        }
+
+        // Barriere-Bezeichnung im fremden Sheet -> Element-Feld in boss_data
+        const ELEMENT_MAP = {
+            fire: "Feuer", feuer: "Feuer",
+            earth: "Erde", erde: "Erde",
+            water: "Wasser", wasser: "Wasser",
+            light: "Licht", licht: "Licht",
+            dark: "Schatten", shadow: "Schatten", schatten: "Schatten",
+            air: "Luft", luft: "Luft",
+        };
+
+        let pendingImportRows = null;
+        let pendingImportTeamRows = null;
+
+        function parseCsvLine(line) {
+            const result = [];
+            let cur = "";
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') { inQuotes = !inQuotes; }
+                else if (char === "," && !inQuotes) { result.push(cur.trim()); cur = ""; }
+                else { cur += char; }
+            }
+            result.push(cur.trim());
+            return result;
+        }
+
+        async function previewSheetImport() {
+            const sheetUrl = document.getElementById('sheetUrlInput').value.trim();
+            const status = document.getElementById('sheetImportStatus');
+            const preview = document.getElementById('sheetImportPreview');
+            preview.innerHTML = '';
+            pendingImportRows = null;
+
+            if (!sheetUrl) { alert("Bitte Sheet-Link eingeben."); return; }
+
+            status.textContent = "Lade Sheet...";
+            status.style.color = "var(--accent-color)";
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/fetch-sheet-csv`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
+                    body: JSON.stringify({ sheetUrl })
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || "Unbekannter Fehler beim Laden.");
+
+                const lines = result.csv.split(/\r?\n/).filter(l => l.trim().length > 0);
+                const dataLines = lines.slice(2); // Titel- und Kopfzeile überspringen
+
+                const { data: library } = await _supabase.from('modifiers_library').select('name_de, name_en');
+                const { data: existingRows } = await _supabase.from('boss_data').select('level');
+                const existingLevels = new Set((existingRows || []).map(r => r.level));
+                const { data: existingTeamRows } = await _supabase.from('imported_teams').select('level');
+                const existingTeamLevels = new Set((existingTeamRows || []).map(r => r.level));
+
+                function translateMod(mod) {
+                    const clean = mod.toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+                    const match = (library || []).find(m => {
+                        const de = (m.name_de || "").toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+                        const en = (m.name_en || "").toLowerCase().replace(/[^a-z0-9äöüß]/g, "");
+                        return de === clean || en === clean;
+                    });
+                    return match ? match.name_de : mod;
+                }
+
+                const rows = [];
+                const teamRows = [];
+                const unknownElements = [];
+
+                for (const line of dataLines) {
+                    const cols = parseCsvLine(line);
+                    const level = parseInt(cols[0], 10);
+                    if (!level || isNaN(level)) continue; // Keine gültige Ebene mehr -> Ende der Tabelle erreicht
+
+                    const barrierRaw = (cols[1] || "").trim();
+                    const element = ELEMENT_MAP[barrierRaw.toLowerCase()];
+                    if (!element) { unknownElements.push({ level, raw: barrierRaw }); }
+                    else {
+                        const mods = [cols[2], cols[3], cols[4], cols[5], cols[6]]
+                            .filter(m => m && m.trim().length > 0)
+                            .map(m => translateMod(m.trim()));
+
+                        rows.push({ level, element, mods, alreadyExists: existingLevels.has(level) });
+                    }
+
+                    // Spalten I-O: Team, das laut Sheet diese Ebene erfolgreich geschafft hat
+                    const slot1 = (cols[9] || "").trim();
+                    const slot2 = (cols[10] || "").trim();
+                    const slot3 = (cols[11] || "").trim();
+                    const slot4 = (cols[12] || "").trim();
+                    const booster = (cols[13] || "").trim();
+                    const bestFace = (cols[14] || "").trim();
+
+                    if (slot1 || slot2 || slot3 || slot4) {
+                        teamRows.push({
+                            level, slot1, slot2, slot3, slot4, booster, best_face: bestFace,
+                            alreadyExists: existingTeamLevels.has(level)
+                        });
+                    }
+                }
+
+                pendingImportRows = rows;
+                pendingImportTeamRows = teamRows;
+
+                const overwrite = document.getElementById('overwriteExistingCheckbox').checked;
+                const toImport = rows.filter(r => !r.alreadyExists || overwrite);
+                const toSkip = rows.filter(r => r.alreadyExists && !overwrite);
+                const teamsToImport = teamRows.filter(r => !r.alreadyExists || overwrite);
+                const teamsToSkip = teamRows.filter(r => r.alreadyExists && !overwrite);
+
+                status.textContent = `Vorschau bereit: ${rows.length} Boss-Ebenen und ${teamRows.length} Team-Vorschläge im Sheet gefunden.`;
+                status.style.color = "#49e37d";
+
+                preview.innerHTML = `
+                    <p>
+                        <strong>Boss-Daten:</strong> ${toImport.length} werden importiert${overwrite ? '/überschrieben' : ''}, ${toSkip.length} übersprungen (bereits vorhanden).<br>
+                        <strong>Team-Vorschläge:</strong> ${teamsToImport.length} werden importiert${overwrite ? '/überschrieben' : ''}, ${teamsToSkip.length} übersprungen (bereits vorhanden).${
+                            unknownElements.length > 0
+                                ? `<br><strong style="color: var(--admin-color);">${unknownElements.length}</strong> Ebenen mit unbekanntem Element übersprungen (z.B. "${unknownElements[0].raw}").`
+                                : ''
+                        }
+                    </p>
+                    <button onclick="runSheetImport()" style="width: 100%;">Import bestätigen (${toImport.length} Bosse, ${teamsToImport.length} Teams)</button>
+                `;
+
+            } catch (err) {
+                console.error(err);
+                status.textContent = "Fehler: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
+        }
+
+        async function runSheetImport() {
+            if (!pendingImportRows && !pendingImportTeamRows) return;
+            const status = document.getElementById('sheetImportStatus');
+            const overwrite = document.getElementById('overwriteExistingCheckbox').checked;
+
+            const toImport = (pendingImportRows || []).filter(r => !r.alreadyExists || overwrite);
+            const teamsToImport = (pendingImportTeamRows || []).filter(r => !r.alreadyExists || overwrite);
+
+            if (toImport.length === 0 && teamsToImport.length === 0) { alert("Nichts zu importieren."); return; }
+
+            status.textContent = `Importiere ${toImport.length} Boss-Ebenen und ${teamsToImport.length} Team-Vorschläge...`;
+            status.style.color = "var(--accent-color)";
+
+            try {
+                if (toImport.length > 0) {
+                    const bossPayload = toImport.map(r => ({ level: r.level, element: r.element, mods: r.mods }));
+                    const { error: bossError } = await _supabase.from('boss_data').upsert(bossPayload);
+                    if (bossError) throw bossError;
+                }
+
+                if (teamsToImport.length > 0) {
+                    const teamPayload = teamsToImport.map(r => ({
+                        level: r.level, slot1: r.slot1, slot2: r.slot2, slot3: r.slot3, slot4: r.slot4,
+                        booster: r.booster, best_face: r.best_face
+                    }));
+                    const { error: teamError } = await _supabase.from('imported_teams').upsert(teamPayload);
+                    if (teamError) throw teamError;
+                }
+
+                status.textContent = `${toImport.length} Boss-Ebenen und ${teamsToImport.length} Team-Vorschläge erfolgreich importiert!`;
+                status.style.color = "#49e37d";
+                document.getElementById('sheetImportPreview').innerHTML = '';
+                pendingImportRows = null;
+                pendingImportTeamRows = null;
+                await loadInitialDropdownData();
+
+            } catch (err) {
+                console.error(err);
+                status.textContent = "Fehler beim Import: " + err.message;
+                status.style.color = "var(--admin-color)";
+            }
         }
 
         function generateSecurityCode(length = 6) {
