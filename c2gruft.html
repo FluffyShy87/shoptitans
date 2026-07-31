@@ -323,9 +323,61 @@
             buildDropdowns();
             setupPasteFeature();
             setupGlobalTouchHandler();
+
             const { data: { session } } = await _supabase.auth.getSession();
-            if (session) { handleUserSession(session.user); }
+            if (session) {
+                // Bereits eingeloggt -> kein SSO-Austausch nötig, Race vermeiden.
+                handleUserSession(session.user);
+                clearSsoParamFromUrl();
+                return;
+            }
+
+            const ssoToken = new URLSearchParams(window.location.search).get('sso');
+            if (ssoToken) {
+                await tryExchangeSsoToken(ssoToken);
+            }
         };
+
+        function clearSsoParamFromUrl() {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('sso')) {
+                url.searchParams.delete('sso');
+                history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+            }
+        }
+
+        async function tryExchangeSsoToken(ssoToken) {
+            try {
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/exchange-sso`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
+                    body: JSON.stringify({ token: ssoToken })
+                });
+                const result = await response.json();
+
+                if (response.ok && result.access_token && result.refresh_token) {
+                    const { data, error } = await _supabase.auth.setSession({
+                        access_token: result.access_token,
+                        refresh_token: result.refresh_token
+                    });
+                    if (!error && data.session) {
+                        handleUserSession(data.session.user);
+                    } else {
+                        console.warn("SSO: setSession fehlgeschlagen, zeige normalen Passwort-Dialog.");
+                    }
+                } else {
+                    console.warn("SSO-Austausch fehlgeschlagen:", result.error || response.status);
+                }
+            } catch (err) {
+                console.error("Fehler beim SSO-Austausch:", err);
+            } finally {
+                // Sofort entfernen, auch nach Fehlversuch - Token soll nicht in History/Referrer bleiben
+                clearSsoParamFromUrl();
+            }
+        }
 
         function buildDropdowns() {
             const upTeams = document.getElementById('uploadLevelSelect');
