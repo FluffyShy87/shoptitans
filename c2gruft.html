@@ -656,6 +656,32 @@
             reader.readAsDataURL(file);
         }
 
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function moderateImage(file) {
+            const base64String = await readFileAsBase64(file);
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/moderate-image`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ imageBase64: base64String })
+            });
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || "Moderation fehlgeschlagen");
+            }
+            return result; // { safe, reason }
+        }
+
         async function uploadToSupabase() {
             const levelSelect = document.getElementById('uploadLevelSelect');
             const fileInput = document.getElementById('imageFile');
@@ -666,10 +692,28 @@
             const level = parseInt(levelSelect.value, 10);
             if (!fileInput.files[0]) { alert("Datei wählen."); return; }
 
+            const file = fileInput.files[0];
+
+            status.textContent = "Bild wird geprüft...";
+            status.style.color = "var(--accent-color)";
+
+            try {
+                const moderation = await moderateImage(file);
+                if (!moderation.safe) {
+                    status.textContent = "Bild abgelehnt: " + (moderation.reason || "Unangemessener Inhalt erkannt.");
+                    status.style.color = "var(--admin-color)";
+                    return;
+                }
+            } catch (err) {
+                console.error("Moderationsfehler:", err);
+                status.textContent = "Bild konnte nicht geprüft werden. Bitte versuch es in Kürze erneut.";
+                status.style.color = "var(--admin-color)";
+                return;
+            }
+
             status.textContent = "Team wird hochgeladen...";
             status.style.color = "var(--accent-color)";
 
-            const file = fileInput.files[0];
             const fileExtension = file.name.split('.').pop();
             const anonymousFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`;
 
