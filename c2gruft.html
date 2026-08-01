@@ -50,6 +50,16 @@
         button { background-color: var(--accent-color); color: #000; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         button:hover { background-color: #ffc847; }
         .status-msg { margin-top: 10px; font-size: 14px; font-style: italic; }
+
+        .sso-spinner {
+            width: 36px; height: 36px;
+            margin: 10px auto 0;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: sso-spin 0.8s linear infinite;
+        }
+        @keyframes sso-spin { to { transform: rotate(360deg); } }
         
 /* Flexbox-Grid für Desktop-Ansicht */
         .dashboard-grid {
@@ -167,6 +177,11 @@
             <h2 style="color: var(--accent-color); margin-top:0;">Gilden-Zugang</h2>
             <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Chapter 2 - Gruft Archiv</p>
             
+            <div id="ssoLoadingState" style="display: none; padding: 10px 0;">
+                <div class="sso-spinner"></div>
+                <p style="color: var(--text-muted); font-size: 14px; margin-top: 16px; margin-bottom: 0;">Anmeldung läuft...</p>
+            </div>
+
             <div id="memberForm">
                 <div class="form-group">
                     <label for="memberPasswordInput" style="text-align: left;">Gilden-Passwort:</label>
@@ -324,6 +339,13 @@
             setupPasteFeature();
             setupGlobalTouchHandler();
 
+            // Sofort (noch vor jedem await) prüfen und ggf. Ladezustand zeigen,
+            // damit das Passwort-Formular nie kurz aufblitzt.
+            const ssoToken = new URLSearchParams(window.location.search).get('sso');
+            if (ssoToken) {
+                showSsoLoadingState();
+            }
+
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
                 // Bereits eingeloggt -> kein SSO-Austausch nötig, Race vermeiden.
@@ -332,11 +354,22 @@
                 return;
             }
 
-            const ssoToken = new URLSearchParams(window.location.search).get('sso');
             if (ssoToken) {
                 await tryExchangeSsoToken(ssoToken);
             }
         };
+
+        function showSsoLoadingState() {
+            document.getElementById('memberForm').style.display = 'none';
+            document.getElementById('adminForm').style.display = 'none';
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('ssoLoadingState').style.display = 'block';
+        }
+
+        function hideSsoLoadingState() {
+            document.getElementById('ssoLoadingState').style.display = 'none';
+            document.getElementById('memberForm').style.display = 'block';
+        }
 
         function clearSsoParamFromUrl() {
             const url = new URL(window.location.href);
@@ -367,12 +400,15 @@
                         handleUserSession(data.session.user);
                     } else {
                         console.warn("SSO: setSession fehlgeschlagen, zeige normalen Passwort-Dialog.");
+                        hideSsoLoadingState();
                     }
                 } else {
                     console.warn("SSO-Austausch fehlgeschlagen:", result.error || response.status);
+                    hideSsoLoadingState();
                 }
             } catch (err) {
                 console.error("Fehler beim SSO-Austausch:", err);
+                hideSsoLoadingState();
             } finally {
                 // Sofort entfernen, auch nach Fehlversuch - Token soll nicht in History/Referrer bleiben
                 clearSsoParamFromUrl();
