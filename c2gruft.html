@@ -505,7 +505,23 @@
             if (currentVal && activeLevels.has(parseInt(currentVal))) select.value = currentVal;
             else if (activeLevels.size > 0) select.value = Array.from(activeLevels).sort((a,b)=>a-b)[0];
 
+            updateBossUploadDropdown(new Set((bosses || []).map(b => b.level)));
+
             loadLevelData();
+        }
+
+        function updateBossUploadDropdown(bossLevels) {
+            const upBoss = document.getElementById('uploadBossLevelSelect');
+            Array.from(upBoss.options).forEach(opt => {
+                const level = parseInt(opt.value, 10);
+                if (bossLevels.has(level)) {
+                    opt.textContent = `Ebene ${level} (bereits erfasst)`;
+                    opt.disabled = true;
+                } else {
+                    opt.textContent = `Ebene ${level}`;
+                    opt.disabled = false;
+                }
+            });
         }
 
         async function loadLevelData() {
@@ -646,6 +662,18 @@
 
             const level = parseInt(levelSelect.value, 10);
             if (!fileInput.files[0]) { alert("Bitte einen Boss-Screenshot auswählen."); return; }
+
+            status.textContent = "Prüfe, ob für diese Ebene schon ein Boss erfasst ist...";
+            status.style.color = "var(--accent-color)";
+
+            // Vor dem kostenpflichtigen KI-Aufruf prüfen, ob die Ebene schon einen Boss hat
+            // (egal ob per Scan oder Sheet-Import erfasst) - spart unnötige Gemini-Credits.
+            const { data: existingBoss } = await _supabase.from('boss_data').select('level').eq('level', level).maybeSingle();
+            if (existingBoss) {
+                status.textContent = `Für Ebene ${level} ist bereits ein Boss erfasst. Ein Admin muss den bestehenden Eintrag zuerst löschen, bevor neu gescannt werden kann.`;
+                status.style.color = "var(--admin-color)";
+                return;
+            }
 
             status.textContent = "KI analysiert das Bild (Schild & Text)... Bitte warten...";
             status.style.color = "var(--accent-color)";
